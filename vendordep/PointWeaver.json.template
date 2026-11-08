@@ -1,0 +1,28 @@
+{
+    "fileName": "PointWeaver.json",
+    "name": "PointWeaver",
+    "version": "${version}",
+    "frcYear": "${frcYear}",
+    "uuid": "58ba48cf-b18c-44ba-9c92-eb23c11421c3",
+    "mavenUrls": [
+        "${siteUrl}/repo"
+    ],
+    "jsonUrl": "${siteUrl}/PointWeaver.json",
+    "javaDependencies": [
+        {
+            "groupId": "io.github.tasrobotics",
+            "artifactId": "pointweaver-java",
+            "version": "${version}"
+        }
+    ],
+    "jniDependencies": [],
+    "cppDependencies": [],
+    "requires": [
+        {
+            "uuid": "e995de00-2c64-4df5-8831-c1441420ff19",
+            "errorMessage": "PointWeaver needs CTRE Phoenix 6. Install it from the WPILib vendor libraries.",
+            "offlineFileName": "Phoenix6-frc2026-latest.json",
+            "onlineUrl": "https://maven.ctr-electronics.com/release/com/ctre/phoenix6/latest/Phoenix6-frc2026-latest.json"
+        }
+    ]
+}

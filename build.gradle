@@ -1,0 +1,116 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+group = 'io.github.tasrobotics'
+// CI passes -PreleaseVersion=2026.1.0 from the git tag; local builds are snapshots.
+version = project.findProperty('releaseVersion') ?: '2026.1.0-SNAPSHOT'
+
+def wpilibVersion = '2026.2.1'
+def phoenixVersion = '26.1.1'
+def frcYear = '2026'
+def siteUrl = 'https://tasrobotics.github.io/pointweaver-lib'
+
+java {
+    withSourcesJar()
+    withJavadocJar()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    // 2026 robots run Java 17. Keep the source 17-compatible so the 2027 (Java 25) build is a dependency swap.
+    options.release = 17
+    options.encoding = 'UTF-8'
+    // -classfile: WPILib's jars carry Jackson annotations we don't use (and 2027 drops Jackson)
+    options.compilerArgs.addAll(['-Xlint:all,-serial,-processing,-options,-classfile'])
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://frcmaven.wpi.edu/artifactory/release/' }
+    maven { url = 'https://maven.ctr-electronics.com/release/' }
+}
+
+dependencies {
+    // Provided by the robot project (WPILib + the team's own Phoenix 6 vendordep), never bundled.
+    compileOnly "edu.wpi.first.wpilibj:wpilibj-java:$wpilibVersion"
+    compileOnly "edu.wpi.first.wpimath:wpimath-java:$wpilibVersion"
+    compileOnly "edu.wpi.first.wpiutil:wpiutil-java:$wpilibVersion"
+    compileOnly "edu.wpi.first.wpiunits:wpiunits-java:$wpilibVersion"
+    compileOnly "edu.wpi.first.ntcore:ntcore-java:$wpilibVersion"
+    compileOnly "edu.wpi.first.hal:hal-java:$wpilibVersion"
+    compileOnly "edu.wpi.first.wpilibNewCommands:wpilibNewCommands-java:$wpilibVersion"
+    compileOnly "com.ctre.phoenix6:wpiapi-java:$phoenixVersion"
+
+    // Tests only touch pointweaver.core, which is plain Java.
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+    testLogging {
+        events = ['failed']
+        exceptionFormat = 'full'
+    }
+}
+
+javadoc {
+    options.addStringOption('Xdoclint:none', '-quiet')
+}
+
+// Everything that goes on GitHub Pages: build/site/repo (Maven) + build/site/PointWeaver.json (vendordep)
+def siteDir = layout.buildDirectory.dir('site')
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+            pom {
+                name = 'PointWeaver'
+                description = 'Point-to-point path follower for CTRE swerve drivetrains (FRC)'
+                url = 'https://github.com/TASRobotics/pointweaver-lib'
+                licenses {
+                    license {
+                        name = 'MIT License'
+                        url = 'https://opensource.org/licenses/MIT'
+                    }
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            name = 'site'
+            // plain File so this also works when a GradleRIO robot (Gradle 8.x) pulls this repo in with includeBuild
+            url = layout.buildDirectory.dir('site/repo').get().asFile
+        }
+    }
+}
+
+// Writes build/site/PointWeaver.json (latest) and PointWeaver-<version>.json (pinned).
+// Only declares those two files as outputs, so it never touches the Maven repo next to them.
+def vendordepVersion = project.version.toString()
+tasks.register('generateVendordep') {
+    description = 'Writes the vendordep JSON for this version into build/site.'
+    def template = file('vendordep/PointWeaver.json.template')
+    def outputs = [
+        siteDir.map { it.file('PointWeaver.json') },
+        siteDir.map { it.file("PointWeaver-${vendordepVersion}.json") },
+    ]
+    inputs.file(template)
+    inputs.property('version', vendordepVersion)
+    it.outputs.files(outputs)
+    doLast {
+        def text = template.text
+            .replace('${version}', vendordepVersion)
+            .replace('${frcYear}', frcYear)
+            .replace('${siteUrl}', siteUrl)
+        outputs.each { out ->
+            def f = out.get().asFile
+            f.parentFile.mkdirs()
+            f.text = text
+        }
+    }
+}

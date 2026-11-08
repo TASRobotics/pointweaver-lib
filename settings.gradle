@@ -1,0 +1,3 @@
+// Project name = Maven artifactId, so a robot project can `includeBuild` this repo
+// and Gradle swaps the published jar for the local source automatically.
+rootProject.name = 'pointweaver-java'

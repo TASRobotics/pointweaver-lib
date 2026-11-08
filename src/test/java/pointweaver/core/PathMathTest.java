@@ -1,0 +1,95 @@
+package pointweaver.core;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.List;
+import org.junit.jupiter.api.Test;
+import pointweaver.core.PathMath.ResolvedParams;
+
+class PathMathTest {
+    static PathPoint pt(double x, double y, Double theta, PathParams params) {
+        return new PathPoint(x, y, theta, params, null);
+    }
+
+    static PathParams interp(boolean on) {
+        return new PathParams(null, null, null, null, on);
+    }
+
+    @Test
+    void shortestAngleWraps() {
+        assertEquals(20, PathMath.shortestAngleDeg(170, -170), 1e-9);
+        assertEquals(-20, PathMath.shortestAngleDeg(-170, 170), 1e-9);
+        assertEquals(-180, PathMath.shortestAngleDeg(0, 180), 1e-9);
+        assertEquals(10, PathMath.shortestAngleDeg(-370, -360), 1e-9);
+    }
+
+    @Test
+    void pointParamsOverridePathParams() {
+        PathParams path = new PathParams(1.0, 3.0, 0.5, 8.0, true);
+        ResolvedParams r = PathMath.resolve(path, new PathParams(null, 2.0, null, null, false));
+        assertEquals(1.0, r.minSpeed);
+        assertEquals(2.0, r.maxSpeed);
+        assertEquals(0.5, r.earlyExitRange);
+        assertEquals(8.0, r.timeout);
+        assertFalse(r.interpolate);
+
+        ResolvedParams defaults = PathMath.resolve(PathParams.EMPTY, PathParams.EMPTY);
+        assertEquals(0.0, defaults.minSpeed);
+        assertEquals(Double.POSITIVE_INFINITY, defaults.maxSpeed);
+        assertFalse(defaults.hasEarlyExit());
+        assertFalse(defaults.interpolate);
+    }
+
+    @Test
+    void lastPointIgnoresMinSpeedAndRobotMaxCaps() {
+        ResolvedParams p = PathMath.resolve(new PathParams(2.0, 10.0, null, null, null), null);
+        assertEquals(2.0, PathMath.clampSpeed(0.1, p, false, 5.0), 1e-9);
+        assertEquals(0.1, PathMath.clampSpeed(0.1, p, true, 5.0), 1e-9);
+        assertEquals(5.0, PathMath.clampSpeed(50, p, false, 5.0), 1e-9);
+        assertEquals(0.0, PathMath.clampSpeed(0.0, p, false, 5.0), 1e-9);
+    }
+
+    @Test
+    void finishRules() {
+        ResolvedParams exit = PathMath.resolve(new PathParams(null, null, 1.0, 2.0, null), null);
+        PathPoint heading = pt(0, 0, 90.0, null);
+        PathPoint trans = pt(0, 0, null, null);
+
+        assertTrue(PathMath.isPointFinished(heading, exit, false, 0.5, 0, 0, 0, 0.05, 2), "early exit");
+        assertFalse(PathMath.isPointFinished(heading, exit, true, 0.5, 0, 0, 0, 0.05, 2), "last point ignores early exit");
+        assertTrue(PathMath.isPointFinished(heading, exit, true, 5, 5, 0, 2.5, 0.05, 2), "timeout");
+
+        ResolvedParams none = PathMath.resolve(null, null);
+        assertFalse(PathMath.isPointFinished(heading, none, false, 0.01, 0, 45, 0, 0.05, 2), "heading point needs heading");
+        assertTrue(PathMath.isPointFinished(heading, none, false, 0.01, 0, 89, 0, 0.05, 2));
+        assertTrue(PathMath.isPointFinished(trans, none, false, 0.01, 0, 45, 0, 0.05, 2), "translation point skips heading");
+    }
+
+    @Test
+    void interpolationNeverSnaps() {
+        // heading 0 -> translation -> heading 90, interpolate on the end point
+        List<PathPoint> pts = List.of(pt(0, 0, 0.0, null), pt(1, 0, null, null), pt(2, 0, 90.0, interp(true)));
+        PathDefinition def = new PathDefinition("t", pts, null, false);
+        ResolvedParams[] params = PathMath.resolveAll(def);
+        double[] prefix = PathMath.prefixDistances(pts);
+
+        // at point 1, heading is the same whether we're still driving to 1 or already driving to 2
+        double toward1 = PathMath.desiredHeadingDeg(pts, prefix, params, 1, 1, 0, 0, 0, 0);
+        double toward2 = PathMath.desiredHeadingDeg(pts, prefix, params, 2, 1, 0, 0, 0, 0);
+        assertEquals(45, toward1, 1e-9);
+        assertEquals(toward1, toward2, 1e-9);
+        assertEquals(90, PathMath.desiredHeadingDeg(pts, prefix, params, 2, 2, 0, 0, 0, 0), 1e-9);
+    }
+
+    @Test
+    void withoutInterpolationHoldsThenSnaps() {
+        List<PathPoint> pts = List.of(pt(0, 0, 0.0, null), pt(1, 0, null, null), pt(2, 0, 90.0, interp(false)));
+        PathDefinition def = new PathDefinition("t", pts, null, false);
+        ResolvedParams[] params = PathMath.resolveAll(def);
+        double[] prefix = PathMath.prefixDistances(pts);
+        assertEquals(0, PathMath.desiredHeadingDeg(pts, prefix, params, 1, 0.5, 0, 0, 0, 0), 1e-9);
+        assertEquals(90, PathMath.desiredHeadingDeg(pts, prefix, params, 2, 1.0, 0, 0, 0, 0), 1e-9);
+    }
+}

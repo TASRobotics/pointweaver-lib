@@ -1,0 +1,19 @@
+{
+  "params": {
+    "minSpeed": 0.0,
+    "maxSpeed": 3.0,
+    "earlyExitRange": 1.0,
+    "interpolate": true,
+    "timeout": 8.0
+  },
+  "points": [
+    { "x": 5.0, "y": 3.0, "params": { "interpolate": true, "minSpeed": 2.0, "earlyExitRange": 1.0 } },
+    { "x": 4.707, "y": 4.707, "theta": -135.0, "params": { "interpolate": true, "minSpeed": 2.0, "earlyExitRange": 1.0 } },
+    { "x": 3.0, "y": 5.0, "params": { "interpolate": true, "minSpeed": 2.0, "earlyExitRange": 1.0 } },
+    { "x": 1.293, "y": 4.707, "theta": -45.0, "params": { "interpolate": true, "minSpeed": 2.0, "earlyExitRange": 1.0 } },
+    { "x": 1.0, "y": 3.0, "params": { "interpolate": true, "minSpeed": 2.0, "earlyExitRange": 1.0 } },
+    { "x": 1.293, "y": 1.293, "theta": 45.0, "params": { "interpolate": true, "minSpeed": 2.0, "earlyExitRange": 1.0 } },
+    { "x": 3.0, "y": 1.0, "params": { "interpolate": true, "minSpeed": 2.0, "earlyExitRange": 1.0 } },
+    { "x": 4.707, "y": 1.293, "theta": 135.0, "params": { "interpolate": true } }
+  ]
+}

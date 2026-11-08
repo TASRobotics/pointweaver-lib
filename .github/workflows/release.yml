@@ -1,0 +1,47 @@
+name: Release
+
+# Push a tag like v2026.1.0 to publish that version to GitHub Pages:
+#   https://tasrobotics.github.io/pointweaver-lib/PointWeaver.json   (vendordep teams install)
+#   https://tasrobotics.github.io/pointweaver-lib/repo/...           (Maven repo it points at)
+# One-time setup: Settings -> Pages -> Deploy from branch "gh-pages".
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Start from what's already published so older versions and maven-metadata.xml are kept
+      - name: Get current gh-pages
+        uses: actions/checkout@v4
+        continue-on-error: true # first release: branch doesn't exist yet
+        with:
+          ref: gh-pages
+          path: build/site
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build, test and publish
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          rm -rf build/site/.git
+          ./gradlew build publishMavenPublicationToSiteRepository generateVendordep -PreleaseVersion="$VERSION"
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build/site
+          keep_files: true
+          commit_message: "Release ${{ github.ref_name }}"
