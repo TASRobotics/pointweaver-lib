@@ -2,10 +2,11 @@
 
 Point-to-point path following for **CTRE Phoenix 6 swerve** drivetrains (FRC, WPILib 2026).
 Draw paths in the PointWeaver app, drop them in your deploy folder, follow them with a few lines of code.
+No splines: the robot drives straight at each point, and the library works out how fast it can go.
 
-- Drives straight at each point in order. Speed comes from a P(ID) on distance, clamped per point.
+- Speed comes from a braking curve (it can always still stop at the point) and a final-approach P loop, with one acceleration limit for starting, stopping and corners.
 - Heading uses CTRE's `FieldCentricFacingAngle`, optionally interpolated smoothly between heading points.
-- Per-point overrides for speed, early exit and timeout. Named events and optional odometry reset.
+- Per-point overrides for speed, acceleration, early exit and timeout. Named events and optional odometry reset.
 - Works with plain `TimedRobot`, command-based, and (later) 2027 OpModes.
 
 ## Install
@@ -16,9 +17,17 @@ Draw paths in the PointWeaver app, drop them in your deploy folder, follow them 
    https://tasrobotics.github.io/pointweaver-lib/PointWeaver.json
    ```
 
-## Use it
+## Files
 
-Paths live in `src/main/deploy/pointweaver/<name>.json`, which is where the app saves them.
+The PointWeaver app writes both of these into your robot project:
+
+```
+src/main/deploy/pointweaver/
+  robot.json      your robot's speed, acceleration and tuning (shared with the app's preview)
+  paths/*.json    one file per path
+```
+
+## Use it
 
 ```java
 public class Robot extends TimedRobot {
@@ -26,7 +35,7 @@ public class Robot extends TimedRobot {
     private PathFollower auto;
 
     public Robot() {
-        PointWeaver.configure(drivetrain, PointWeaverConfig.builder(TunerConstants.kSpeedAt12Volts).build());
+        PointWeaver.configure(drivetrain); // reads deploy/pointweaver/robot.json
         PointWeaver.registerEvent("intake", () -> intake.start());
     }
 
@@ -54,17 +63,29 @@ Command auto = PointWeaverCommands.followPath("testpath");
 
 If a path file is missing or broken, the error goes to the Driver Station and the robot stays still. It doesn't crash.
 
-## Config
+## robot.json
 
-| Builder method | Default | What it does |
+Edit it in the app's Robot panel. The app can also fill speed, spin rate and size from your `TunerConstants.java`. Every field is optional except `maxSpeed`.
+
+| Field | Default | What it does |
 |---|---|---|
-| `builder(maxSpeed)` | required | Drivetrain top speed. Paths can only go slower. |
-| `translationPID(p, i, d)` | 1, 0, 0 | Speed (m/s) per meter of distance to the point. |
-| `headingPID(p, i, d)` | 2, 0, 0 | CTRE heading controller gains. |
-| `positionTolerance(m)` | 0.05 | A point is reached inside this box (per axis). |
-| `headingTolerance(deg)` | 2 | Heading points also need this. |
-| `pathFolder(name)` | `pointweaver` | Folder inside `deploy/`. |
-| `telemetry(on)` / `telemetryTable(name)` | on / `PointWeaver` | NetworkTables output. |
+| `maxSpeed` | required | Top speed (m/s), e.g. `kSpeedAt12Volts`. Paths can only go slower. |
+| `maxAccel` | 3.0 | Acceleration limit (m/s²) for speeding up, braking and corners. Raise it until the wheels slip, then back off. |
+| `translationPID` | [5, 0, 0] | Final-approach gain on distance to the point. Only takes over in the last ~20 cm. |
+| `headingPID` | [2, 0, 0] | CTRE heading controller gains. |
+| `positionTolerance` | 0.05 | A point counts as reached inside this box (m, per axis). |
+| `headingTolerance` | 2 | Heading points also need this (deg). |
+| `maxAngularRate`, `robotLength`, `robotWidth` | | Used by the app's preview (and heading planning, coming next). |
+
+Rather set things in code? `PointWeaverConfig.fromDeploy().headingPID(3, 0, 0).build()` overrides single values, and `PointWeaverConfig.builder(maxSpeed)` skips the file entirely.
+
+## How speed is chosen
+
+Each loop, toward the current point at distance `d`:
+
+1. `braking = sqrt(2 · 0.9·maxAccel · d)` is the fastest speed that can still stop at the point. The 0.9 leaves room for steering.
+2. `planned = min(braking, translationPID(d))`, clamped to the point's min/max speed.
+3. The commanded velocity moves toward `planned` in the point's direction by at most `maxAccel · 0.02` per loop, as a vector. That one limit covers starting, stopping and turning, so corners round off on their own.
 
 ## Path rules
 
@@ -81,6 +102,7 @@ The JSON format and every field are described in [docs/path-format.md](docs/path
 
 Under `/PointWeaver/` on NetworkTables:
 - `pose`, `target`, `path`: Pose2d structs, so AdvantageScope and Elastic can draw them on a field.
+- `speed` vs `plannedSpeed`: compare them while tuning `maxAccel`.
 - `activePath`, `running`, `targetIndex`, `distance`, `desiredHeadingDeg`, `vx`, `vy`, `lastEvent`.
 
 ## Developing
@@ -90,7 +112,7 @@ Under `/PointWeaver/` on NetworkTables:
 ```
 
 - `pointweaver.core` is plain Java (no WPILib, no CTRE). All the following logic lives there and is unit tested.
-- `FollowerCoreSimTest` pins the follower to the PointWeaver app's ghost, so the app preview and the robot can't drift apart.
+- `FollowerCoreSimTest` pins the follower to the PointWeaver app's ghost (exact timings on three paths), so the app preview and the robot can't drift apart.
 - The rest of `pointweaver` is thin glue: CTRE drivetrain, NetworkTables, deploy folder. `pointweaver.command` is the optional Commands v2 adapter.
 - **Testing in a robot project without publishing:** put this repo next to it and add `includeBuild('../pointweaver-lib')` to its `settings.gradle`. Gradle uses the local source instead of the released jar.
 - **Releasing:** push a tag like `v2026.1.0`. GitHub Actions publishes the jar and the vendordep to GitHub Pages. Enable Pages on the `gh-pages` branch once.

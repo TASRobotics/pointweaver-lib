@@ -10,6 +10,8 @@ import java.util.List;
  */
 final class PathMath {
     static final double EPS = 1e-9;
+    /** Braking is planned with this share of the acceleration limit; the rest is left for steering. */
+    static final double BRAKE_MARGIN = 0.9;
 
     private PathMath() {}
 
@@ -67,6 +69,8 @@ final class PathMath {
         final double minSpeed;
         /** +inf when unset (caller clamps to the robot's max) */
         final double maxSpeed;
+        /** +inf when unset (caller clamps to the robot's limit) */
+        final double maxAccel;
         /** NaN when unset (no early exit) */
         final double earlyExitRange;
         /** +inf when unset */
@@ -74,9 +78,10 @@ final class PathMath {
         /** false when unset */
         final boolean interpolate;
 
-        ResolvedParams(double minSpeed, double maxSpeed, double earlyExitRange, double timeout, boolean interpolate) {
+        ResolvedParams(double minSpeed, double maxSpeed, double maxAccel, double earlyExitRange, double timeout, boolean interpolate) {
             this.minSpeed = minSpeed;
             this.maxSpeed = maxSpeed;
+            this.maxAccel = maxAccel;
             this.earlyExitRange = earlyExitRange;
             this.timeout = timeout;
             this.interpolate = interpolate;
@@ -96,12 +101,14 @@ final class PathMath {
         PathParams b = point != null ? point : PathParams.EMPTY;
         Double min = pick(b.minSpeed, a.minSpeed);
         Double max = pick(b.maxSpeed, a.maxSpeed);
+        Double accel = pick(b.maxAccel, a.maxAccel);
         Double exit = pick(b.earlyExitRange, a.earlyExitRange);
         Double timeout = pick(b.timeout, a.timeout);
         Boolean interp = b.interpolate != null ? b.interpolate : a.interpolate;
         return new ResolvedParams(
             min != null ? min : 0.0,
             max != null ? max : Double.POSITIVE_INFINITY,
+            accel != null ? accel : Double.POSITIVE_INFINITY,
             exit != null ? exit : Double.NaN,
             timeout != null ? timeout : Double.POSITIVE_INFINITY,
             interp != null && interp);
@@ -122,6 +129,36 @@ final class PathMath {
         double min = isLast ? 0.0 : Math.min(p.minSpeed, max);
         if (rawSpeed <= EPS) return 0.0;
         return clamp(rawSpeed, min, max);
+    }
+
+    /**
+     * Fastest speed toward a point that can still slow down to {@code vEnd} by the time it gets there:
+     * {@code sqrt(vEnd² + 2·0.9·a·(d − vNow·dt))}. The 90% and the one-loop look-ahead keep it from
+     * overshooting, since steering and braking share the same acceleration budget.
+     *
+     * @param d distance to the point (m)
+     * @param vNow current commanded speed (m/s)
+     * @param vEnd speed allowed at the point (0 = stop there)
+     * @param accel acceleration limit (m/s²)
+     * @param dt loop period (s)
+     */
+    static double brakingSpeed(double d, double vNow, double vEnd, double accel, double dt) {
+        double dPlan = Math.max(0.0, d - vNow * dt);
+        return Math.sqrt(vEnd * vEnd + 2.0 * BRAKE_MARGIN * accel * dPlan);
+    }
+
+    /**
+     * Move velocity (vx, vy) toward (tx, ty), changing it by at most {@code maxDelta} (m/s) as a vector.
+     * Speeding up, braking and turning all share this one limit, which is what rounds corners off.
+     *
+     * @return the new {vx, vy}
+     */
+    static double[] slew(double vx, double vy, double tx, double ty, double maxDelta) {
+        double dx = tx - vx;
+        double dy = ty - vy;
+        double m = Math.hypot(dx, dy);
+        if (m <= maxDelta || m <= EPS) return new double[] {tx, ty};
+        return new double[] {vx + dx / m * maxDelta, vy + dy / m * maxDelta};
     }
 
     /**

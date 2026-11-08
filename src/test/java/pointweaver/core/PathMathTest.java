@@ -14,7 +14,7 @@ class PathMathTest {
     }
 
     static PathParams interp(boolean on) {
-        return new PathParams(null, null, null, null, on);
+        return new PathParams(null, null, null, null, null, on);
     }
 
     @Test
@@ -27,10 +27,11 @@ class PathMathTest {
 
     @Test
     void pointParamsOverridePathParams() {
-        PathParams path = new PathParams(1.0, 3.0, 0.5, 8.0, true);
-        ResolvedParams r = PathMath.resolve(path, new PathParams(null, 2.0, null, null, false));
+        PathParams path = new PathParams(1.0, 3.0, 4.0, 0.5, 8.0, true);
+        ResolvedParams r = PathMath.resolve(path, new PathParams(null, 2.0, 2.5, null, null, false));
         assertEquals(1.0, r.minSpeed);
         assertEquals(2.0, r.maxSpeed);
+        assertEquals(2.5, r.maxAccel);
         assertEquals(0.5, r.earlyExitRange);
         assertEquals(8.0, r.timeout);
         assertFalse(r.interpolate);
@@ -38,13 +39,14 @@ class PathMathTest {
         ResolvedParams defaults = PathMath.resolve(PathParams.EMPTY, PathParams.EMPTY);
         assertEquals(0.0, defaults.minSpeed);
         assertEquals(Double.POSITIVE_INFINITY, defaults.maxSpeed);
+        assertEquals(Double.POSITIVE_INFINITY, defaults.maxAccel);
         assertFalse(defaults.hasEarlyExit());
         assertFalse(defaults.interpolate);
     }
 
     @Test
     void lastPointIgnoresMinSpeedAndRobotMaxCaps() {
-        ResolvedParams p = PathMath.resolve(new PathParams(2.0, 10.0, null, null, null), null);
+        ResolvedParams p = PathMath.resolve(new PathParams(2.0, 10.0, null, null, null, null), null);
         assertEquals(2.0, PathMath.clampSpeed(0.1, p, false, 5.0), 1e-9);
         assertEquals(0.1, PathMath.clampSpeed(0.1, p, true, 5.0), 1e-9);
         assertEquals(5.0, PathMath.clampSpeed(50, p, false, 5.0), 1e-9);
@@ -53,7 +55,7 @@ class PathMathTest {
 
     @Test
     void finishRules() {
-        ResolvedParams exit = PathMath.resolve(new PathParams(null, null, 1.0, 2.0, null), null);
+        ResolvedParams exit = PathMath.resolve(new PathParams(null, null, null, 1.0, 2.0, null), null);
         PathPoint heading = pt(0, 0, 90.0, null);
         PathPoint trans = pt(0, 0, null, null);
 
@@ -91,5 +93,25 @@ class PathMathTest {
         double[] prefix = PathMath.prefixDistances(pts);
         assertEquals(0, PathMath.desiredHeadingDeg(pts, prefix, params, 1, 0.5, 0, 0, 0, 0), 1e-9);
         assertEquals(90, PathMath.desiredHeadingDeg(pts, prefix, params, 2, 1.0, 0, 0, 0, 0), 1e-9);
+    }
+
+    @Test
+    void brakingSpeedCanStillStopAtThePoint() {
+        // v^2 = 2 * 0.9a * d, with one loop of travel taken off d
+        assertEquals(Math.sqrt(2 * 0.9 * 3 * 2.0), PathMath.brakingSpeed(2.0, 0, 0, 3, 0.02), 1e-9);
+        assertEquals(Math.sqrt(2 * 0.9 * 3 * (2.0 - 0.04)), PathMath.brakingSpeed(2.0, 2.0, 0, 3, 0.02), 1e-9);
+        assertEquals(0, PathMath.brakingSpeed(0.01, 1.0, 0, 3, 0.02), 1e-9);
+        assertEquals(1.5, PathMath.brakingSpeed(0, 0, 1.5, 3, 0.02), 1e-9, "end speed when already there");
+    }
+
+    @Test
+    void slewLimitsTheWholeVector() {
+        double[] v = PathMath.slew(0, 0, 3, 4, 0.5);
+        assertEquals(0.5, Math.hypot(v[0], v[1]), 1e-9);
+        assertEquals(0.3, v[0], 1e-9);
+        double[] turn = PathMath.slew(2, 0, 0, 2, 0.06); // 90 degree turn: only 0.06 m/s of change per loop
+        assertEquals(0.06, Math.hypot(turn[0] - 2, turn[1]), 1e-9);
+        double[] close = PathMath.slew(1, 1, 1.01, 1, 0.5);
+        assertEquals(1.01, close[0], 1e-12);
     }
 }

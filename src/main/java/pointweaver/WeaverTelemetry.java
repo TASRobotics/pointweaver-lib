@@ -33,6 +33,8 @@ final class WeaverTelemetry {
     private DoublePublisher desiredHeading;
     private DoublePublisher vx;
     private DoublePublisher vy;
+    private DoublePublisher speed;
+    private DoublePublisher plannedSpeed;
 
     WeaverTelemetry(boolean enabled, String tableName) {
         this.enabled = enabled;
@@ -49,6 +51,8 @@ final class WeaverTelemetry {
         desiredHeading = t.getDoubleTopic("desiredHeadingDeg").publish();
         vx = t.getDoubleTopic("vx").publish();
         vy = t.getDoubleTopic("vy").publish();
+        speed = t.getDoubleTopic("speed").publish();
+        plannedSpeed = t.getDoubleTopic("plannedSpeed").publish();
     }
 
     void pathStarted(PathDefinition def) {
@@ -69,6 +73,8 @@ final class WeaverTelemetry {
         desiredHeading.set(out.headingDeg);
         vx.set(out.vx);
         vy.set(out.vy);
+        speed.set(out.speed());
+        plannedSpeed.set(out.plannedSpeed);
     }
 
     void pathEnded() {
@@ -76,6 +82,8 @@ final class WeaverTelemetry {
         running.set(false);
         vx.set(0);
         vy.set(0);
+        speed.set(0);
+        plannedSpeed.set(0);
     }
 
     void event(String name) {

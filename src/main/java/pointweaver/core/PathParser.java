@@ -98,6 +98,7 @@ public final class PathParser {
         return new PathParams(
             num(p.get("minSpeed"), name, where + " minSpeed"),
             num(p.get("maxSpeed"), name, where + " maxSpeed"),
+            num(p.get("maxAccel"), name, where + " maxAccel"),
             num(p.get("earlyExitRange"), name, where + " earlyExitRange"),
             num(p.get("timeout"), name, where + " timeout"),
             bool(p.get("interpolate"), name, where + " interpolate"));

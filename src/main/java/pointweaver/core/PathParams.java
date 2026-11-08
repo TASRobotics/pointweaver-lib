@@ -9,6 +9,8 @@ public final class PathParams {
     public final Double minSpeed;
     /** Maximum translation speed (m/s), capped by the robot's max speed. */
     public final Double maxSpeed;
+    /** Acceleration limit (m/s²) toward this point, capped by the robot's limit. */
+    public final Double maxAccel;
     /** Move on to the next point once this close (m). Ignored on the last point. */
     public final Double earlyExitRange;
     /** Give up on a point after this many seconds. No timeout = wait forever. */
@@ -16,11 +18,12 @@ public final class PathParams {
     /** On a heading point: turn smoothly into this heading instead of snapping on the last leg. */
     public final Boolean interpolate;
 
-    public static final PathParams EMPTY = new PathParams(null, null, null, null, null);
+    public static final PathParams EMPTY = new PathParams(null, null, null, null, null, null);
 
-    public PathParams(Double minSpeed, Double maxSpeed, Double earlyExitRange, Double timeout, Boolean interpolate) {
+    public PathParams(Double minSpeed, Double maxSpeed, Double maxAccel, Double earlyExitRange, Double timeout, Boolean interpolate) {
         this.minSpeed = minSpeed;
         this.maxSpeed = maxSpeed;
+        this.maxAccel = maxAccel;
         this.earlyExitRange = earlyExitRange;
         this.timeout = timeout;
         this.interpolate = interpolate;

@@ -1,6 +1,6 @@
 package pointweaver.core;
 
-/** A path file couldn't be found, read, or understood. The message says which file and why. */
+/** A PointWeaver file (a path or robot.json) couldn't be found, read, or understood. The message says which and why. */
 public class PathLoadException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 

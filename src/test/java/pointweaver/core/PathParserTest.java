@@ -34,13 +34,14 @@ class PathParserTest {
     void readsEventsResetPoseNullsAndIgnoresUnknownFields() {
         PathDefinition def = PathParser.parse("p", "{"
             + "\"resetPose\": true, \"params\": null, \"futureField\": [1,2],"
-            + "\"points\": [{\"x\": 1, \"y\": 2, \"theta\": null, \"params\": {\"maxSpeed\": null, \"timeout\": 1.5},"
+            + "\"points\": [{\"x\": 1, \"y\": 2, \"theta\": null, \"params\": {\"maxSpeed\": null, \"timeout\": 1.5, \"maxAccel\": 2},"
             + "  \"events\": [{\"name\": \"intake\", \"fraction\": 0.25}, {\"name\": \"no_fraction\"}]}]}");
         assertTrue(def.resetPose);
         assertNull(def.params.maxSpeed);
         PathPoint p = def.points.get(0);
         assertNull(p.theta);
         assertEquals(1.5, p.params.timeout);
+        assertEquals(2.0, p.params.maxAccel);
         assertEquals("intake", p.events.get(0).name);
         assertEquals(0.25, p.events.get(0).fraction);
         assertEquals(0.0, p.events.get(1).fraction);

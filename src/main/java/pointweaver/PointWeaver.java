@@ -19,8 +19,8 @@ import pointweaver.core.PathParser;
  * Entry point. Configure once, register events, then follow paths:
  *
  * <pre>{@code
- * // robot constructor
- * PointWeaver.configure(drivetrain, PointWeaverConfig.builder(TunerConstants.kSpeedAt12Volts).build());
+ * // robot constructor (settings come from deploy/pointweaver/robot.json)
+ * PointWeaver.configure(drivetrain);
  * PointWeaver.registerEvent("intake", () -> intake.start());
  *
  * // auto
@@ -31,7 +31,7 @@ import pointweaver.core.PathParser;
  * }</pre>
  *
  * <p>Command-based robots can use {@code pointweaver.command.PointWeaverCommands} instead.
- * Paths are read from {@code src/main/deploy/pointweaver/<name>.json}, the folder the PointWeaver app saves to.
+ * Paths are read from {@code src/main/deploy/pointweaver/paths/<name>.json}, the folder the PointWeaver app saves to.
  */
 public final class PointWeaver {
     private static SwerveDrivetrain<?, ?, ?> drivetrain;
@@ -44,7 +44,18 @@ public final class PointWeaver {
     private PointWeaver() {}
 
     /**
-     * Tell PointWeaver which drivetrain to drive. Call once, in the robot constructor.
+     * Tell PointWeaver which drivetrain to drive, with settings from {@code deploy/pointweaver/robot.json}.
+     * Call once, in the robot constructor.
+     *
+     * @param drivetrain any CTRE Phoenix 6 swerve drivetrain (e.g. the Tuner X generated one)
+     * @throws pointweaver.core.PathLoadException if robot.json is missing or invalid
+     */
+    public static void configure(SwerveDrivetrain<?, ?, ?> drivetrain) {
+        configure(drivetrain, PointWeaverConfig.fromDeploy().build());
+    }
+
+    /**
+     * Tell PointWeaver which drivetrain to drive, with settings from code. Call once, in the robot constructor.
      *
      * @param drivetrain any CTRE Phoenix 6 swerve drivetrain (e.g. the Tuner X generated one)
      * @param config robot limits and tuning
@@ -80,9 +91,9 @@ public final class PointWeaver {
      */
     public static PathDefinition loadPath(String name) {
         Objects.requireNonNull(name, "name");
-        String folder = config != null ? config.pathFolder : "pointweaver";
+        String folder = config != null ? config.deployFolder : PointWeaverConfig.DEFAULT_DEPLOY_FOLDER;
         return cache.computeIfAbsent(name.trim(), n -> {
-            Path file = Filesystem.getDeployDirectory().toPath().resolve(folder).resolve(n + ".json");
+            Path file = Filesystem.getDeployDirectory().toPath().resolve(folder).resolve("paths").resolve(n + ".json");
             return PathParser.parse(file);
         });
     }

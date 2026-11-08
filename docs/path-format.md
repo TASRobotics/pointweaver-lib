@@ -1,6 +1,7 @@
 # Path file format
 
-One JSON file per path, in `src/main/deploy/pointweaver/<name>.json`. Coordinates are field meters from the
+One JSON file per path, in `src/main/deploy/pointweaver/paths/<name>.json`. Robot-wide settings live next to it in
+`robot.json` (see the README). Coordinates are field meters from the
 blue alliance origin, and angles are degrees CCW from +x. The PointWeaver app writes this format. Unknown fields
 are ignored, so newer files load on older versions.
 
@@ -41,10 +42,18 @@ Each field can be missing or null, which means "inherit". A point's value wins o
 | Field | Default | Meaning |
 |---|---|---|
 | `maxSpeed` | robot max | Top speed toward this point (m/s). |
+| `maxAccel` | robot max | Acceleration limit toward this point (m/s²), e.g. gentler while holding a game piece. Capped by `robot.json`. |
 | `minSpeed` | 0 | Never slower than this toward this point. **Ignored on the last point.** |
 | `earlyExitRange` | off | Move on once this close (m). **Ignored on the last point.** |
 | `timeout` | none | Move on after this many seconds no matter what. |
 | `interpolate` | false | Only matters on heading points, see below. |
+
+## Speed
+
+Toward each point the robot uses the slower of a braking curve (`sqrt(2·0.9·a·d)`, so it can always still stop at
+the point) and the final-approach P loop, clamped to `minSpeed`/`maxSpeed`. The commanded velocity then changes by
+at most `a·0.02` m/s per loop as a vector, where `a` is the point's `maxAccel`. Starting, stopping and corners all
+share that limit. Early exit hands off to the next point while still moving, so the robot flows through.
 
 ## Headings
 

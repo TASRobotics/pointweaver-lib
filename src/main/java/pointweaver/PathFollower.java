@@ -8,6 +8,7 @@ import com.ctre.phoenix6.swerve.SwerveRequest.ForwardPerspectiveValue;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.Timer;
 
 import pointweaver.core.FollowerCore;
@@ -38,15 +39,22 @@ public final class PathFollower {
             .withHeadingPID(config.headingKp, config.headingKi, config.headingKd);
     }
 
-    /** Begin the path from where the robot is now (resetting odometry first if the path asks for it). */
+    /**
+     * Begin the path from where the robot is now (resetting odometry first if the path asks for it).
+     * Starts from the robot's current velocity, so chaining onto a moving robot doesn't jolt it.
+     */
     public void start() {
-        Pose2d pose = drivetrain.getState().Pose;
+        var state = drivetrain.getState();
+        Pose2d pose = state.Pose;
         FollowerCore.Pose reset = core.resetPose(pose.getRotation().getDegrees());
         if (reset != null) {
             pose = new Pose2d(reset.x, reset.y, Rotation2d.fromDegrees(reset.headingDeg));
             drivetrain.resetPose(pose);
         }
-        core.start(pose.getX(), pose.getY(), pose.getRotation().getDegrees(), Timer.getFPGATimestamp());
+        // measured speeds are robot-relative; the follower works in field coordinates
+        ChassisSpeeds field = ChassisSpeeds.fromRobotRelativeSpeeds(state.Speeds, state.Pose.getRotation());
+        core.start(pose.getX(), pose.getY(), pose.getRotation().getDegrees(),
+            field.vxMetersPerSecond, field.vyMetersPerSecond, Timer.getFPGATimestamp());
         started = true;
         telemetry.pathStarted(core.path());
     }
