@@ -27,6 +27,8 @@ public final class PathFollower {
     private final SwerveRequest.RobotCentric idle = new SwerveRequest.RobotCentric()
         .withVelocityX(0).withVelocityY(0).withRotationalRate(0);
     private boolean started;
+    /** Telemetry says this path is running (so "ended" is published once, not every loop after). */
+    private boolean running;
 
     PathFollower(PathDefinition path, SwerveDrivetrain<?, ?, ?> drivetrain, PointWeaverConfig config, WeaverTelemetry telemetry) {
         this.core = new FollowerCore(path, config.toSettings(), PointWeaver::fireEvent);
@@ -56,6 +58,7 @@ public final class PathFollower {
         core.start(pose.getX(), pose.getY(), pose.getRotation().getDegrees(),
             field.vxMetersPerSecond, field.vyMetersPerSecond, Timer.getFPGATimestamp());
         started = true;
+        running = true;
         telemetry.pathStarted(core.path());
     }
 
@@ -73,7 +76,7 @@ public final class PathFollower {
                 .withTargetDirection(Rotation2d.fromDegrees(out.headingDeg)));
         }
         telemetry.update(pose, core.path(), out);
-        if (out.finished) telemetry.pathEnded();
+        if (out.finished) ended();
     }
 
     /** True once the last point is reached (or the path couldn't be loaded). */
@@ -86,6 +89,12 @@ public final class PathFollower {
         core.cancel();
         started = false;
         drivetrain.setControl(idle);
+        ended();
+    }
+
+    private void ended() {
+        if (!running) return;
+        running = false;
         telemetry.pathEnded();
     }
 
