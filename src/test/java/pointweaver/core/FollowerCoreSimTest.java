@@ -103,7 +103,7 @@ class FollowerCoreSimTest {
         assertEquals(135, run.endHeading, 2.0);
 
         assertEquals("0.02 2.26", fmt(simulate(line(), settings(3.0)).pointTimes));
-        assertEquals("0.02 1.82 4.12", fmt(simulate(corner(), settings(3.0)).pointTimes));
+        assertEquals("0.02 1.82 4.14", fmt(simulate(corner(), settings(3.0)).pointTimes));
     }
 
     @Test

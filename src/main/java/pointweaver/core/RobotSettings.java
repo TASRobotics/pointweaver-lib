@@ -13,7 +13,7 @@ public final class RobotSettings {
     public final double[] translationPID;
     /** {kP, kI, kD} for CTRE's heading controller, or null. */
     public final double[] headingPID;
-    /** Point reached inside this box, per axis (m). */
+    /** Point reached within this distance of it (m). */
     public final Double positionTolerance;
     /** Heading point reached inside this (deg). */
     public final Double headingTolerance;

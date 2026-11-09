@@ -67,6 +67,10 @@ class PathMathTest {
         assertFalse(PathMath.isPointFinished(heading, none, false, 0.01, 0, 45, 0, 0.05, 2), "heading point needs heading");
         assertTrue(PathMath.isPointFinished(heading, none, false, 0.01, 0, 89, 0, 0.05, 2));
         assertTrue(PathMath.isPointFinished(trans, none, false, 0.01, 0, 45, 0, 0.05, 2), "translation point skips heading");
+
+        // position tolerance is a circle: 4 cm off on both axes is 5.7 cm away, outside a 5 cm tolerance
+        assertFalse(PathMath.isPointFinished(trans, none, false, 0.04, 0.04, 0, 0, 0.05, 2), "corner of the old box");
+        assertTrue(PathMath.isPointFinished(trans, none, false, 0.03, 0.03, 0, 0, 0.05, 2), "4.2 cm away");
     }
 
     @Test

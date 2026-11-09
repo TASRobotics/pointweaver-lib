@@ -151,7 +151,7 @@ public final class PointWeaverConfig {
             return this;
         }
 
-        /** A point counts as reached inside this box, per axis (m). Default 0.05. */
+        /** A point counts as reached within this distance of it (m). Default 0.05. */
         public Builder positionTolerance(double meters) {
             positionTolerance = meters;
             return this;

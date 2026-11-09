@@ -3,9 +3,10 @@
 ## 2027.0.0 (unreleased)
 
 - WPILib 2027 alpha-7 and CTRE Phoenix 6 `26.70.0-alpha-2`. Java 25.
-- `org.wpilib` packages throughout the glue; `pointweaver.core` is unchanged. See [docs/migrating-to-2027.md](docs/migrating-to-2027.md).
+- `org.wpilib` packages throughout the glue (the move didn't touch `pointweaver.core`). See [docs/migrating-to-2027.md](docs/migrating-to-2027.md).
 - `PointWeaverCommands` now needs the Commands V2 vendordep (it's no longer built into WPILib).
 - The vendordep is published under `/2027/PointWeaver.json`, so the 2026 one at the site root keeps working.
+- `positionTolerance` is a straight-line distance from the point (a circle), not a box on each axis, so a diagonal approach can't stop up to 1.4× further away.
 
 ## 2026.1.0 (unreleased)
 

@@ -73,7 +73,7 @@ Edit it in the app's Robot panel. The app can also fill speed, spin rate and siz
 | `maxAccel` | 3.0 | Acceleration limit (m/s²) for speeding up, braking and corners. Raise it until the wheels slip, then back off. |
 | `translationPID` | [5, 0, 0] | Final-approach gain on distance to the point. Only takes over in the last ~20 cm. |
 | `headingPID` | [2, 0, 0] | CTRE heading controller gains. |
-| `positionTolerance` | 0.05 | A point counts as reached inside this box (m, per axis). |
+| `positionTolerance` | 0.05 | A point counts as reached within this distance of it (m). |
 | `headingTolerance` | 2 | Heading points also need this (deg). |
 | `maxAngularRate`, `robotLength`, `robotWidth` | | Used by the app's preview (and heading planning, coming next). |
 

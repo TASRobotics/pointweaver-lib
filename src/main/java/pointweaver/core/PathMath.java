@@ -196,7 +196,7 @@ final class PathMath {
 
     /**
      * Is the robot done with this point? Timeout passed, inside early exit range (never on the last point),
-     * or inside position tolerance (plus heading tolerance for heading points).
+     * or within the position tolerance of it (straight-line distance; plus heading tolerance for heading points).
      * Translation-only points don't check heading, since the robot may be mid-turn on purpose.
      */
     static boolean isPointFinished(PathPoint p, ResolvedParams params, boolean isLast,
@@ -207,8 +207,7 @@ final class PathMath {
         double d = dist(poseX, poseY, p.x, p.y);
         if (!isLast && params.hasEarlyExit() && d < params.earlyExitRange) return true;
 
-        boolean inPosition = Math.abs(poseX - p.x) < posTolerance && Math.abs(poseY - p.y) < posTolerance;
-        if (!inPosition) return false;
+        if (d >= posTolerance) return false;
         if (p.theta == null) return true;
         return Math.abs(shortestAngleDeg(headingDeg, p.theta)) < headingToleranceDeg;
     }

@@ -69,7 +69,7 @@ translation-only points in between. Before the first heading point, A is the rob
 Checked every loop, in this order:
 1. its `timeout` has passed, or
 2. (not the last point) it's within `earlyExitRange`, or
-3. it's within the position tolerance on both axes **and**, for heading points only, within the heading tolerance.
+3. it's within the position tolerance of it (straight-line distance) **and**, for heading points only, within the heading tolerance.
 
 Translation-only points never wait for heading, because the robot may be mid-turn on purpose.
 

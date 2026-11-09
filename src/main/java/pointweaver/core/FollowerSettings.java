@@ -9,7 +9,7 @@ public final class FollowerSettings {
     public final double translationKp;
     public final double translationKi;
     public final double translationKd;
-    /** A point counts as reached inside this box (m, per axis). */
+    /** A point counts as reached within this distance of it (m). */
     public final double positionTolerance;
     /** A heading point counts as reached inside this (deg). */
     public final double headingToleranceDeg;
