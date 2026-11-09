@@ -1,6 +1,6 @@
 name: Release
 
-# Push a tag like v2026.1.0 to publish that version to GitHub Pages:
+# Push a tag like v2026.1.0 (from the 2026 branch) to publish that version to GitHub Pages:
 #   https://tasrobotics.github.io/pointweaver-lib/PointWeaver.json   (vendordep teams install)
 #   https://tasrobotics.github.io/pointweaver-lib/repo/...           (Maven repo it points at)
 # One-time setup: Settings -> Pages -> Deploy from branch "gh-pages".

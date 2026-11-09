@@ -4,6 +4,8 @@ Point-to-point path following for **CTRE Phoenix 6 swerve** drivetrains (FRC, WP
 Draw paths in the PointWeaver app, drop them in your deploy folder, follow them with a few lines of code.
 No splines: the robot drives straight at each point, and the library works out how fast it can go.
 
+> **Legacy WPILib 2026 branch.** It still works, but new development (WPILib 2027) is on `main`.
+
 - Speed comes from a braking curve (it can always still stop at the point) and a final-approach P loop, with one acceleration limit for starting, stopping and corners.
 - Heading uses CTRE's `FieldCentricFacingAngle`, optionally interpolated smoothly between heading points.
 - Per-point overrides for speed, acceleration, early exit and timeout. Named events and optional odometry reset.
