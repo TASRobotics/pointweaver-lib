@@ -2,8 +2,8 @@ package pointweaver;
 
 import com.ctre.phoenix6.swerve.SwerveDrivetrain;
 
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.Filesystem;
+import org.wpilib.driverstation.DriverStationErrors;
+import org.wpilib.system.Filesystem;
 
 import java.nio.file.Path;
 import java.util.Map;
@@ -109,7 +109,7 @@ public final class PointWeaver {
         try {
             path = loadPath(name);
         } catch (PathLoadException e) {
-            DriverStation.reportError("PointWeaver: " + e.getMessage(), false);
+            DriverStationErrors.reportError("PointWeaver: " + e.getMessage(), false);
             path = PathDefinition.empty(name);
         }
         return follower(path);
@@ -136,7 +136,7 @@ public final class PointWeaver {
         if (telemetry != null) telemetry.event(name);
         if (action == null) {
             if (warnedEvents.add(name)) {
-                DriverStation.reportWarning("PointWeaver: no event registered for '" + name + "'", false);
+                DriverStationErrors.reportWarning("PointWeaver: no event registered for '" + name + "'", false);
             }
             return;
         }

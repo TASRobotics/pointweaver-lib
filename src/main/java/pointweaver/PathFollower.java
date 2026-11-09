@@ -6,10 +6,10 @@ import com.ctre.phoenix6.swerve.SwerveModule.SteerRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import com.ctre.phoenix6.swerve.SwerveRequest.ForwardPerspectiveValue;
 
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.kinematics.ChassisSpeeds;
-import edu.wpi.first.wpilibj.Timer;
+import org.wpilib.math.geometry.Pose2d;
+import org.wpilib.math.geometry.Rotation2d;
+import org.wpilib.math.kinematics.ChassisVelocities;
+import org.wpilib.system.Timer;
 
 import pointweaver.core.FollowerCore;
 import pointweaver.core.PathDefinition;
@@ -53,10 +53,9 @@ public final class PathFollower {
             pose = new Pose2d(reset.x, reset.y, Rotation2d.fromDegrees(reset.headingDeg));
             drivetrain.resetPose(pose);
         }
-        // measured speeds are robot-relative; the follower works in field coordinates
-        ChassisSpeeds field = ChassisSpeeds.fromRobotRelativeSpeeds(state.Speeds, state.Pose.getRotation());
-        core.start(pose.getX(), pose.getY(), pose.getRotation().getDegrees(),
-            field.vxMetersPerSecond, field.vyMetersPerSecond, Timer.getFPGATimestamp());
+        // measured velocity is robot-relative; the follower works in field coordinates
+        ChassisVelocities field = state.Velocity.toFieldRelative(state.Pose.getRotation());
+        core.start(pose.getX(), pose.getY(), pose.getRotation().getDegrees(), field.vx, field.vy, Timer.getTimestamp());
         started = true;
         running = true;
         telemetry.pathStarted(core.path());
@@ -66,7 +65,7 @@ public final class PathFollower {
     public void update() {
         if (!started) start();
         Pose2d pose = drivetrain.getState().Pose;
-        FollowerCore.Output out = core.update(pose.getX(), pose.getY(), pose.getRotation().getDegrees(), Timer.getFPGATimestamp());
+        FollowerCore.Output out = core.update(pose.getX(), pose.getY(), pose.getRotation().getDegrees(), Timer.getTimestamp());
         if (out.finished) {
             drivetrain.setControl(idle);
         } else {

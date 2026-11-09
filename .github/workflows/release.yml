@@ -1,8 +1,9 @@
 name: Release
 
-# Push a tag like v2026.1.0 to publish that version to GitHub Pages:
-#   https://tasrobotics.github.io/pointweaver-lib/PointWeaver.json   (vendordep teams install)
-#   https://tasrobotics.github.io/pointweaver-lib/repo/...           (Maven repo it points at)
+# Push a tag like v2027.0.0 (from the 2027 branch) to publish that version to GitHub Pages:
+#   https://tasrobotics.github.io/pointweaver-lib/2027/PointWeaver.json   (vendordep 2027 teams install)
+#   https://tasrobotics.github.io/pointweaver-lib/repo/...                (Maven repo it points at, shared with 2026)
+# The 2026 vendordep at the site root is left alone (keep_files below).
 # One-time setup: Settings -> Pages -> Deploy from branch "gh-pages".
 
 on:
@@ -29,7 +30,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 25
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Build, test and publish

@@ -1,7 +1,7 @@
 package pointweaver.command;
 
-import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Subsystem;
+import org.wpilib.command2.Command;
+import org.wpilib.command2.Subsystem;
 
 import pointweaver.PathFollower;
 import pointweaver.PointWeaver;

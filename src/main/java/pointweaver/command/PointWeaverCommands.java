@@ -1,7 +1,7 @@
 package pointweaver.command;
 
-import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import org.wpilib.command2.Command;
+import org.wpilib.command2.CommandScheduler;
 
 import pointweaver.PointWeaver;
 import pointweaver.core.PathDefinition;

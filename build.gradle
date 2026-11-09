@@ -4,12 +4,12 @@ plugins {
 }
 
 group = 'io.github.tasrobotics'
-// CI passes -PreleaseVersion=2026.1.0 from the git tag; local builds are snapshots.
-version = project.findProperty('releaseVersion') ?: '2026.1.0-SNAPSHOT'
+// CI passes -PreleaseVersion=2027.0.0 from the git tag; local builds are snapshots.
+version = project.findProperty('releaseVersion') ?: '2027.0.0-SNAPSHOT'
 
-def wpilibVersion = '2026.2.1'
-def phoenixVersion = '26.1.1'
-def frcYear = '2026'
+def wpilibVersion = '2027.0.0-alpha-7'
+def phoenixVersion = '26.70.0-alpha-2'
+def wpilibYear = '2027_alpha7'
 def siteUrl = 'https://tasrobotics.github.io/pointweaver-lib'
 
 java {
@@ -18,10 +18,10 @@ java {
 }
 
 tasks.withType(JavaCompile).configureEach {
-    // 2026 robots run Java 17. Keep the source 17-compatible so the 2027 (Java 25) build is a dependency swap.
-    options.release = 17
+    // 2027 robots run Java 25 (build with the WPILib 2027 JDK)
+    options.release = 25
     options.encoding = 'UTF-8'
-    // -classfile: WPILib's jars carry Jackson annotations we don't use (and 2027 drops Jackson)
+    // -classfile: some dependency jars carry annotations whose classes aren't on our compile classpath
     options.compilerArgs.addAll(['-Xlint:all,-serial,-processing,-options,-classfile'])
 }
 
@@ -33,13 +33,16 @@ repositories {
 
 dependencies {
     // Provided by the robot project (WPILib + the team's own Phoenix 6 vendordep), never bundled.
-    compileOnly "edu.wpi.first.wpilibj:wpilibj-java:$wpilibVersion"
-    compileOnly "edu.wpi.first.wpimath:wpimath-java:$wpilibVersion"
-    compileOnly "edu.wpi.first.wpiutil:wpiutil-java:$wpilibVersion"
-    compileOnly "edu.wpi.first.wpiunits:wpiunits-java:$wpilibVersion"
-    compileOnly "edu.wpi.first.ntcore:ntcore-java:$wpilibVersion"
-    compileOnly "edu.wpi.first.hal:hal-java:$wpilibVersion"
-    compileOnly "edu.wpi.first.wpilibNewCommands:wpilibNewCommands-java:$wpilibVersion"
+    compileOnly "org.wpilib.wpilibj:wpilibj-java:$wpilibVersion"
+    compileOnly "org.wpilib.wpimath:wpimath-java:$wpilibVersion"
+    compileOnly "org.wpilib.wpiutil:wpiutil-java:$wpilibVersion"
+    compileOnly "org.wpilib.wpiunits:wpiunits-java:$wpilibVersion"
+    compileOnly "org.wpilib.ntcore:ntcore-java:$wpilibVersion"
+    compileOnly "org.wpilib.hal:hal-java:$wpilibVersion"
+    compileOnly "org.wpilib.telemetry:telemetry-java:$wpilibVersion"
+    compileOnly "org.wpilib.tunables:tunables-java:$wpilibVersion"
+    // Commands V2 is its own vendordep in 2027; only pointweaver.command needs it
+    compileOnly "org.wpilib.commandsv2:commandsv2-java:$wpilibVersion"
     compileOnly "com.ctre.phoenix6:wpiapi-java:$phoenixVersion"
 
     // Tests only touch pointweaver.core, which is plain Java.
@@ -89,15 +92,17 @@ publishing {
     }
 }
 
-// Writes build/site/PointWeaver.json (latest) and PointWeaver-<version>.json (pinned).
+// Writes build/site/2027/PointWeaver.json (latest) and 2027/PointWeaver-<version>.json (pinned).
+// 2027 lives in its own folder so a 2027 release never replaces the 2026 vendordep at the site root.
 // Only declares those two files as outputs, so it never touches the Maven repo next to them.
 def vendordepVersion = project.version.toString()
+def vendordepDir = '2027'
 tasks.register('generateVendordep') {
     description = 'Writes the vendordep JSON for this version into build/site.'
     def template = file('vendordep/PointWeaver.json.template')
     def outputs = [
-        siteDir.map { it.file('PointWeaver.json') },
-        siteDir.map { it.file("PointWeaver-${vendordepVersion}.json") },
+        siteDir.map { it.file("${vendordepDir}/PointWeaver.json") },
+        siteDir.map { it.file("${vendordepDir}/PointWeaver-${vendordepVersion}.json") },
     ]
     inputs.file(template)
     inputs.property('version', vendordepVersion)
@@ -105,8 +110,9 @@ tasks.register('generateVendordep') {
     doLast {
         def text = template.text
             .replace('${version}', vendordepVersion)
-            .replace('${frcYear}', frcYear)
+            .replace('${wpilibYear}', wpilibYear)
             .replace('${siteUrl}', siteUrl)
+            .replace('${vendordepDir}', vendordepDir)
         outputs.each { out ->
             def f = out.get().asFile
             f.parentFile.mkdirs()

@@ -1,29 +1,32 @@
-# Moving to WPILib 2027 (alpha-7)
+# WPILib 2027 (alpha-7)
 
-The library is laid out so the 2027 move is mostly a dependency and import swap.
+The `2027` branch builds against WPILib `2027.0.0-alpha-7` and CTRE Phoenix 6 `26.70.0-alpha-2`.
+`main` stays on 2026. `pointweaver.core` didn't change at all; only the glue did.
 
-| 2027 change | Where it hits PointWeaver |
+## What changed from 2026
+
+| 2026 | 2027 alpha-7 |
 |---|---|
-| Java packages `edu.wpi.first.*` → `org.wpilib.*`, constants ALL_CAPS | Only the glue: `PointWeaver`, `PointWeaverConfig`, `PathFollower`, `WeaverTelemetry`, `command/*`. `pointweaver.core` has no WPILib imports. |
-| Jackson removed (Avaje Jsonb) | Nothing. The core has its own JSON reader. |
-| SmartDashboard / Sendable replaced by Telemetry / Tunables | Nothing. Telemetry is raw NT4 publishers in `WeaverTelemetry`. |
-| `OpModeRobot`: OpModes are `start()` / `periodic()` / `end()` | `PathFollower` already has `start()` / `update()` / `stop()`. |
-| Java 25 | The code is Java 17 compatible. Bump `options.release`. |
-| Vendordeps from alpha-6 and earlier don't load | Needs a Phoenix 6 build for alpha-7 from CTRE. **This is the external blocker.** |
+| Java 17 | Java 25 (`options.release = 25`, CI on JDK 25) |
+| `edu.wpi.first.*` artifacts | `org.wpilib.*` artifacts, plus `telemetry-java` and `tunables-java` (Commands V2's `Command` implements their interfaces) |
+| `edu.wpi.first.wpilibj.DriverStation.reportError/reportWarning` | `org.wpilib.driverstation.DriverStationErrors` |
+| `edu.wpi.first.wpilibj.Filesystem`, `Timer` | `org.wpilib.system.Filesystem`, `Timer` |
+| `Timer.getFPGATimestamp()` | `Timer.getTimestamp()` |
+| `edu.wpi.first.math.geometry.*`, `edu.wpi.first.units.*` | `org.wpilib.math.geometry.*`, `org.wpilib.units.*` |
+| `ChassisSpeeds.fromRobotRelativeSpeeds(state.Speeds, angle)` | `state.Velocity.toFieldRelative(angle)` (`ChassisVelocities`, fields `vx` / `vy`) |
+| `edu.wpi.first.networktables.*` | `org.wpilib.networktables.*` |
+| `edu.wpi.first.wpilibj2.command.*` (built in) | `org.wpilib.command2.*` (the Commands V2 vendordep) |
+| Vendordep `"frcYear": "2026"` at the site root | `"wpilibYear": "2027_alpha7"`, published under `/2027/` |
+| Phoenix 6 `26.1.1` | Phoenix 6 `26.70.0-alpha-2` (the swerve API PointWeaver uses is unchanged) |
 
-## Checklist
+## For robot projects
 
-1. **`build.gradle`:**
-   - `wpilibVersion = '2027.0.0-alpha-7'`, using the new artifact coordinates from the alpha-7 release.
-   - `phoenixVersion` = CTRE's 2027 alpha build.
-   - `frcYear = '2027'`.
-   - `options.release = 25`.
-2. **Update imports in the glue files.** The VS Code importer's package mapping is a good reference.
-3. **`command/`:** keep the Commands v2 adapter if v2 is still shipped, and/or add a Commands v3 one. OpMode users don't need either.
-4. **Vendordep:** bump the version to `2027.x` and update the Phoenix 6 `requires` entry (uuid, file name, URL) to CTRE's 2027 vendordep.
-5. **Release** from a `2027` branch, so 2026 teams keep getting `2026.x` from `main`.
+Your own code needs the same kind of changes. The example robot's `2027` branch shows a full move:
 
-## A 2027 auto, for reference
+- GradleRIO plugin `org.wpilib.GradleRIO` `2027.0.0-alpha-7`, Gradle 9.4.1, Java 25, SystemCore deploy target.
+- Tuner X files: `org.wpilib` imports, `.withCANBusName(kCANBus.getName())` → `.withNetwork(kCANBus)`,
+  and `new CANBus(name, hootFile)` → `new CANBus(name)`.
+- Autos as OpModes: `Robot extends OpModeRobot`, and each auto is an `@Autonomous` class implementing `OpMode`:
 
 ```java
 @Autonomous(name = "Test Path")
@@ -36,4 +39,11 @@ public class TestPathAuto implements OpMode {
 }
 ```
 
-`PointWeaver.configure(...)` goes in the `OpModeRobot` subclass constructor.
+`PointWeaver.configure(...)` goes in the `OpModeRobot` subclass constructor. `OpModeRobot` finds `@Autonomous`
+classes in its own package and subpackages, and creates one when it's selected on the Driver Station.
+
+## Not done yet
+
+- A Commands v3 adapter (`org.wpilib.command3`). OpMode and TimedRobot users don't need one.
+- CTRE's `Phoenix6-frc2027-latest.json` (the vendordep's `requires` link for Phoenix) doesn't resolve yet.
+  It's only used to prompt installing Phoenix; the UUID check works without it.
