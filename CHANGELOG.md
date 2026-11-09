@@ -1,6 +1,6 @@
 # Changelog
 
-## 2027.0.0 (unreleased, `2027` branch)
+## 2027.0.0 (unreleased)
 
 - WPILib 2027 alpha-7 and CTRE Phoenix 6 `26.70.0-alpha-2`. Java 25.
 - `org.wpilib` packages throughout the glue; `pointweaver.core` is unchanged. See [docs/migrating-to-2027.md](docs/migrating-to-2027.md).

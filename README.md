@@ -4,7 +4,7 @@ Point-to-point path following for **CTRE Phoenix 6 swerve** drivetrains (FRC, **
 Draw paths in the PointWeaver app, drop them in your deploy folder, follow them with a few lines of code.
 No splines: the robot drives straight at each point, and the library works out how fast it can go.
 
-> This is the `2027` branch. For WPILib 2026 robots, use the `main` branch and its vendordep.
+> For WPILib 2026 robots, use the legacy `2026` branch and its vendordep.
 
 - Speed comes from a braking curve (it can always still stop at the point) and a final-approach P loop, with one acceleration limit for starting, stopping and corners.
 - Heading uses CTRE's `FieldCentricFacingAngle`, optionally interpolated smoothly between heading points.
@@ -115,7 +115,7 @@ Under `/PointWeaver/` on NetworkTables:
 - `FollowerCoreSimTest` pins the follower to the PointWeaver app's ghost (exact timings on three paths), so the app preview and the robot can't drift apart.
 - The rest of `pointweaver` is thin glue: CTRE drivetrain, NetworkTables, deploy folder. `pointweaver.command` is the optional Commands v2 adapter.
 - **Testing in a robot project without publishing:** put this repo next to it and add `includeBuild('../pointweaver-lib')` to its `settings.gradle`. Gradle uses the local source instead of the released jar.
-- **Releasing:** push a tag like `v2027.0.0` from this branch. GitHub Actions publishes the jar and the vendordep to GitHub Pages under `/2027/`, leaving the 2026 vendordep alone. Enable Pages on the `gh-pages` branch once.
+- **Releasing:** push a tag like `v2027.0.0` from `main`. GitHub Actions publishes the jar and the vendordep to GitHub Pages under `/2027/`, leaving the 2026 vendordep alone. Enable Pages on the `gh-pages` branch once.
 - **Coming from 2026:** [docs/migrating-to-2027.md](docs/migrating-to-2027.md) lists what changed.
 
 MIT licensed.

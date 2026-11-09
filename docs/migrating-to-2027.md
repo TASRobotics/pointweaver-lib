@@ -1,7 +1,7 @@
 # WPILib 2027 (alpha-7)
 
-The `2027` branch builds against WPILib `2027.0.0-alpha-7` and CTRE Phoenix 6 `26.70.0-alpha-2`.
-`main` stays on 2026. `pointweaver.core` didn't change at all; only the glue did.
+`main` builds against WPILib `2027.0.0-alpha-7` and CTRE Phoenix 6 `26.70.0-alpha-2`.
+The legacy 2026 version is on the `2026` branch. `pointweaver.core` didn't change at all; only the glue did.
 
 ## What changed from 2026
 
@@ -21,7 +21,7 @@ The `2027` branch builds against WPILib `2027.0.0-alpha-7` and CTRE Phoenix 6 `2
 
 ## For robot projects
 
-Your own code needs the same kind of changes. The example robot's `2027` branch shows a full move:
+Your own code needs the same kind of changes. The example robot shows a full move (compare its `main` with its `2026` branch):
 
 - GradleRIO plugin `org.wpilib.GradleRIO` `2027.0.0-alpha-7`, Gradle 9.4.1, Java 25, SystemCore deploy target.
 - Tuner X files: `org.wpilib` imports, `.withCANBusName(kCANBus.getName())` → `.withNetwork(kCANBus)`,
