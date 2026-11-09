@@ -37,7 +37,8 @@ are ignored, so newer files load on older versions.
 
 ## Params (path-wide or per point)
 
-Each field can be missing or null, which means "inherit". A point's value wins over the path's.
+Each field can be missing or null, which means "inherit". A point's value wins over the path's, except
+`interpolate`: true on the path turns it on for every point.
 
 | Field | Default | Meaning |
 |---|---|---|
@@ -46,7 +47,7 @@ Each field can be missing or null, which means "inherit". A point's value wins o
 | `minSpeed` | 0 | Never slower than this toward this point. **Ignored on the last point.** |
 | `earlyExitRange` | off | Move on once this close (m). **Ignored on the last point.** |
 | `timeout` | none | Move on after this many seconds no matter what. |
-| `interpolate` | false | Only matters on heading points, see below. |
+| `interpolate` | false | Only matters on heading points, see below. True on the path = true on every point (a point can't turn it back off); otherwise each point decides. |
 
 ## Speed
 
@@ -60,9 +61,9 @@ share that limit. Early exit hands off to the next point while still moving, so 
 The path splits into stretches from one heading point **A** to the next heading point **B**, with
 translation-only points in between. Before the first heading point, A is the robot's heading when the path started.
 
-- **`interpolate` true on B:** the target heading eases from A to B (smoothstep) over the whole stretch, measured
+- **`interpolate` true on B (or on the path):** the target heading eases from A to B (smoothstep) over the whole stretch, measured
   along the path. No snapping.
-- **`interpolate` false on B:** hold A through the translation points, then target B on the final leg into B.
+- **`interpolate` false on B:** aim for B as soon as the robot leaves A, turning as fast as the heading controller allows.
 
 ## When a point is done
 

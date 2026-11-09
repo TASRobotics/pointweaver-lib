@@ -27,14 +27,13 @@ class PathMathTest {
 
     @Test
     void pointParamsOverridePathParams() {
-        PathParams path = new PathParams(1.0, 3.0, 4.0, 0.5, 8.0, true);
-        ResolvedParams r = PathMath.resolve(path, new PathParams(null, 2.0, 2.5, null, null, false));
+        PathParams path = new PathParams(1.0, 3.0, 4.0, 0.5, 8.0, null);
+        ResolvedParams r = PathMath.resolve(path, new PathParams(null, 2.0, 2.5, null, null, null));
         assertEquals(1.0, r.minSpeed);
         assertEquals(2.0, r.maxSpeed);
         assertEquals(2.5, r.maxAccel);
         assertEquals(0.5, r.earlyExitRange);
         assertEquals(8.0, r.timeout);
-        assertFalse(r.interpolate);
 
         ResolvedParams defaults = PathMath.resolve(PathParams.EMPTY, PathParams.EMPTY);
         assertEquals(0.0, defaults.minSpeed);
@@ -42,6 +41,18 @@ class PathMathTest {
         assertEquals(Double.POSITIVE_INFINITY, defaults.maxAccel);
         assertFalse(defaults.hasEarlyExit());
         assertFalse(defaults.interpolate);
+    }
+
+    @Test
+    void pathInterpolateTurnsEveryPointOn() {
+        // on for the path: every point interpolates, even one set to off
+        assertTrue(PathMath.resolve(interp(true), interp(false)).interpolate);
+        assertTrue(PathMath.resolve(interp(true), null).interpolate);
+        // off or unset for the path: each point decides, default off
+        assertTrue(PathMath.resolve(interp(false), interp(true)).interpolate);
+        assertTrue(PathMath.resolve(null, interp(true)).interpolate);
+        assertFalse(PathMath.resolve(interp(false), interp(false)).interpolate);
+        assertFalse(PathMath.resolve(interp(false), null).interpolate);
     }
 
     @Test
@@ -90,12 +101,15 @@ class PathMathTest {
     }
 
     @Test
-    void withoutInterpolationHoldsThenSnaps() {
+    void withoutInterpolationAimsForTheNextHeadingRightAway() {
         List<PathPoint> pts = List.of(pt(0, 0, 0.0, null), pt(1, 0, null, null), pt(2, 0, 90.0, interp(false)));
         PathDefinition def = new PathDefinition("t", pts, null, false);
         ResolvedParams[] params = PathMath.resolveAll(def);
         double[] prefix = PathMath.prefixDistances(pts);
-        assertEquals(0, PathMath.desiredHeadingDeg(pts, prefix, params, 1, 0.5, 0, 0, 0, 0), 1e-9);
+        // still driving to point 0: its own heading (not the robot's starting 45)
+        assertEquals(0, PathMath.desiredHeadingDeg(pts, prefix, params, 0, 0, 0, 0, 0, 45), 1e-9);
+        // left point 0, driving to the translation point: already aiming for point 2's heading
+        assertEquals(90, PathMath.desiredHeadingDeg(pts, prefix, params, 1, 0.5, 0, 0, 0, 0), 1e-9);
         assertEquals(90, PathMath.desiredHeadingDeg(pts, prefix, params, 2, 1.0, 0, 0, 0, 0), 1e-9);
     }
 

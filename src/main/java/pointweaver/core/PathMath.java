@@ -63,7 +63,7 @@ final class PathMath {
         return -1;
     }
 
-    /** Point params merged on top of path params, with defaults filled in. */
+    /** Point params merged on top of path params, with defaults filled in. {@code interpolate} is the exception: path OR point. */
     static final class ResolvedParams {
         /** 0 when unset */
         final double minSpeed;
@@ -75,7 +75,7 @@ final class PathMath {
         final double earlyExitRange;
         /** +inf when unset */
         final double timeout;
-        /** false when unset */
+        /** true if the path or the point turns it on (on for the path can't be turned off per point) */
         final boolean interpolate;
 
         ResolvedParams(double minSpeed, double maxSpeed, double maxAccel, double earlyExitRange, double timeout, boolean interpolate) {
@@ -104,14 +104,15 @@ final class PathMath {
         Double accel = pick(b.maxAccel, a.maxAccel);
         Double exit = pick(b.earlyExitRange, a.earlyExitRange);
         Double timeout = pick(b.timeout, a.timeout);
-        Boolean interp = b.interpolate != null ? b.interpolate : a.interpolate;
+        // interpolate on for the whole path turns it on for every point; otherwise each point decides (default off)
+        boolean interp = Boolean.TRUE.equals(a.interpolate) || Boolean.TRUE.equals(b.interpolate);
         return new ResolvedParams(
             min != null ? min : 0.0,
             max != null ? max : Double.POSITIVE_INFINITY,
             accel != null ? accel : Double.POSITIVE_INFINITY,
             exit != null ? exit : Double.NaN,
             timeout != null ? timeout : Double.POSITIVE_INFINITY,
-            interp != null && interp);
+            interp);
     }
 
     static ResolvedParams[] resolveAll(PathDefinition def) {
@@ -166,7 +167,7 @@ final class PathMath {
      *
      * <p>Every [point, trans, ..., point] sandwich goes from heading A to heading B.
      * interpolate on B = smoothly turn from A to B over the whole sandwich (no snapping).
-     * interpolate off on B = hold A on the translation points, then snap to B on the last leg.
+     * interpolate off on B = aim for B as soon as the robot leaves A (turning as fast as the heading controller goes).
      * Before the first heading point, "A" is wherever the robot was facing when the path started.
      */
     static double desiredHeadingDeg(List<PathPoint> pts, double[] prefix, ResolvedParams[] params, int k,
@@ -178,9 +179,7 @@ final class PathMath {
         if (b < 0) return fromDeg; // nothing ahead, hold what we had
         double toDeg = pts.get(b).theta;
 
-        if (!params[b].interpolate) {
-            return k == b ? toDeg : fromDeg;
-        }
+        if (!params[b].interpolate) return toDeg;
 
         PathPoint target = pts.get(k);
         // whole sandwich length, and how much of it is left (along the path, not straight-line)

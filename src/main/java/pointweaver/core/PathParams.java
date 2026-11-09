@@ -15,7 +15,10 @@ public final class PathParams {
     public final Double earlyExitRange;
     /** Give up on a point after this many seconds. No timeout = wait forever. */
     public final Double timeout;
-    /** On a heading point: turn smoothly into this heading instead of snapping on the last leg. */
+    /**
+     * On a heading point: turn smoothly into this heading across the stretch, instead of turning to it right away.
+     * On the path, it turns this on for every heading point (a point can't turn it back off).
+     */
     public final Boolean interpolate;
 
     public static final PathParams EMPTY = new PathParams(null, null, null, null, null, null);

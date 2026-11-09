@@ -7,6 +7,8 @@
 - `PointWeaverCommands` now needs the Commands V2 vendordep (it's no longer built into WPILib).
 - The vendordep is published under `/2027/PointWeaver.json`, so the 2026 one at the site root keeps working.
 - `positionTolerance` is a straight-line distance from the point (a circle), not a box on each axis, so a diagonal approach can't stop up to 1.4× further away.
+- `interpolate` on the path now turns it on for every heading point, overriding points set to off. Off on the path no longer turns points off; each point decides.
+- Without `interpolate`, the robot aims for the next heading point as soon as it leaves the previous one, instead of holding the old heading until the last leg.
 
 ## 2026.1.0 (unreleased)
 
