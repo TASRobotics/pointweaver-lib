@@ -3,6 +3,7 @@
 ## 2027.0.0 (unreleased)
 
 - WPILib 2027 alpha-7 and CTRE Phoenix 6 `26.70.0-alpha-2`. Java 25.
+- `alpha-8` branch: WPILib 2027 alpha-8, no code changes. Vendordeps still say `"wpilibYear": "2027_alpha7"`, because alpha-8 kept that year.
 - `org.wpilib` packages throughout the glue (the move didn't touch `pointweaver.core`). See [docs/migrating-to-2027.md](docs/migrating-to-2027.md).
 - `PointWeaverCommands` now needs the Commands V2 vendordep (it's no longer built into WPILib).
 - The vendordep is published under `/2027/PointWeaver.json`, so the 2026 one at the site root keeps working.

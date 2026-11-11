@@ -7,9 +7,9 @@ group = 'io.github.tasrobotics'
 // CI passes -PreleaseVersion=2027.0.0 from the git tag; local builds are snapshots.
 version = project.findProperty('releaseVersion') ?: '2027.0.0-SNAPSHOT'
 
-def wpilibVersion = '2027.0.0-alpha-7'
+def wpilibVersion = '2027.0.0-alpha-8'
 def phoenixVersion = '26.70.0-alpha-2'
-def wpilibYear = '2027_alpha7'
+def wpilibYear = '2027_alpha7' // alpha-8 kept alpha-7's year: GradleRIO alpha-8 rejects vendordeps marked 2027_alpha8
 def siteUrl = 'https://tasrobotics.github.io/pointweaver-lib'
 
 java {

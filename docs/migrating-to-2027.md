@@ -1,6 +1,6 @@
 # WPILib 2027 (alpha-7)
 
-`main` builds against WPILib `2027.0.0-alpha-7` and CTRE Phoenix 6 `26.70.0-alpha-2`.
+This `alpha-8` branch builds against WPILib `2027.0.0-alpha-8` and CTRE Phoenix 6 `26.70.0-alpha-2`; `main` is the same code on alpha-7.
 The legacy 2026 version is on the `2026` branch. `pointweaver.core` didn't change at all; only the glue did.
 
 ## What changed from 2026
@@ -47,3 +47,10 @@ classes in its own package and subpackages, and creates one when it's selected o
 - A Commands v3 adapter (`org.wpilib.command3`). OpMode and TimedRobot users don't need one.
 - CTRE's `Phoenix6-frc2027-latest.json` (the vendordep's `requires` link for Phoenix) doesn't resolve yet.
   It's only used to prompt installing Phoenix; the UUID check works without it.
+
+## Alpha-7 → alpha-8 (the `alpha-8` branch)
+
+- Only versions change: `wpilibVersion = '2027.0.0-alpha-8'` here, GradleRIO `2027.0.0-alpha-8` in robot projects. No code changes.
+- Vendordeps keep `"wpilibYear": "2027_alpha7"`. Alpha-8 kept that year, and GradleRIO alpha-8 rejects vendordeps marked
+  `2027_alpha8`. That's also why alpha-7 vendordeps such as Phoenix 6 `26.70.0-alpha-2` still load (and they run fine).
+- The robot needs SystemCore image 14 or later and FIRST Driver Station alpha 7 or later.

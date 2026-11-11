@@ -1,10 +1,10 @@
 # PointWeaver
 
-Point-to-point path following for **CTRE Phoenix 6 swerve** drivetrains (FRC, **WPILib 2027 alpha-7**).
+Point-to-point path following for **CTRE Phoenix 6 swerve** drivetrains (FRC, **WPILib 2027 alpha-8**).
 Draw paths in the PointWeaver app, drop them in your deploy folder, follow them with a few lines of code.
 No splines: the robot drives straight at each point, and the library works out how fast it can go.
 
-> For WPILib 2026 robots, use the legacy `2026` branch and its vendordep.
+> This is the `alpha-8` branch. Alpha-7 robots use `main`; WPILib 2026 robots use the legacy `2026` branch.
 
 - Speed comes from a braking curve (it can always still stop at the point) and a final-approach P loop, with one acceleration limit for starting, stopping and corners.
 - Heading uses CTRE's `FieldCentricFacingAngle`, optionally interpolated smoothly between heading points.
