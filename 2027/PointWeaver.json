@@ -1,7 +1,7 @@
 {
     "fileName": "PointWeaver.json",
     "name": "PointWeaver",
-    "version": "2027.0.0",
+    "version": "2027.0.1",
     "wpilibYear": "2027_alpha7",
     "uuid": "58ba48cf-b18c-44ba-9c92-eb23c11421c3",
     "mavenUrls": [
@@ -12,7 +12,7 @@
         {
             "groupId": "io.github.tasrobotics",
             "artifactId": "pointweaver-java",
-            "version": "2027.0.0"
+            "version": "2027.0.1"
         }
     ],
     "jniDependencies": [],
