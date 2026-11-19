@@ -123,6 +123,82 @@ class PathMathTest {
     }
 
     @Test
+    void brakingStartsEarlierByTheResponseLag() {
+        // at 2 m/s with 0.08 s of lag, 0.16 m more is gone before the robot reacts
+        assertEquals(Math.sqrt(2 * 0.9 * 3 * (2.0 - 2.0 * 0.1)), PathMath.brakingSpeed(2.0, 2.0, 0, 3, 0.02, 0.08), 1e-9);
+        assertEquals(PathMath.brakingSpeed(2.0, 2.0, 0, 3, 0.02), PathMath.brakingSpeed(2.0, 2.0, 0, 3, 0.02, 0), 1e-12);
+    }
+
+    @Test
+    void cornerSpeedFitsTheTurnInsideTheExitCircle() {
+        PathPoint a = pt(0, 0, null, null);
+        PathPoint corner = pt(2, 0, null, null);
+        assertEquals(Double.POSITIVE_INFINITY, PathMath.cornerSpeed(a, corner, pt(4, 0, null, null), 0.5, 3, 0), "straight on");
+        assertEquals(Math.sqrt(0.9 * 3 * 0.5 / 1.0), PathMath.cornerSpeed(a, corner, pt(2, 2, null, null), 0.5, 3, 0), 1e-9, "90 deg");
+        assertEquals(Math.sqrt(0.9 * 3 * 0.5 / Math.tan(Math.toRadians(22.5))),
+            PathMath.cornerSpeed(a, corner, pt(4, 2 * Math.tan(Math.toRadians(45)), null, null), 0.5, 3, 0), 1e-9, "45 deg");
+        assertTrue(PathMath.cornerSpeed(a, corner, pt(0, 0.001, null, null), 0.5, 3, 0) < 0.05, "doubling back");
+        assertEquals(0, PathMath.cornerSpeed(a, a, corner, 0.5, 3, 0), "zero-length side");
+        // with lag the turn starts late: v^2 = k (r - v lag), here k = 2.7
+        double v = PathMath.cornerSpeed(a, corner, pt(2, 2, null, null), 0.5, 3, 0.1);
+        assertEquals(2.7 * (0.5 - v * 0.1), v * v, 1e-9);
+        assertTrue(v < Math.sqrt(0.9 * 3 * 0.5), "slower than with no lag");
+    }
+
+    @Test
+    void passSpeedsStopAtTheEndsAndAtHeadingPointsWithoutExit() {
+        PathParams exit = new PathParams(null, null, null, 0.5, null, null);
+        List<PathPoint> pts = List.of(
+            pt(0, 0, 0.0, null),
+            pt(2, 0, null, null),          // straight through, no exit range: only the room to the next point limits it
+            pt(4, 0, 0.0, null),           // heading point without an exit range: stop and turn
+            pt(6, 0, null, exit),          // 90 deg corner inside a 0.5 m exit range
+            pt(6, 2, 90.0, null));
+        PathDefinition def = new PathDefinition("p", pts, null, false);
+        double[] pass = PathMath.passSpeeds(pts, PathMath.resolveAll(def), 5.0, 3.0, 0.05, 0);
+        assertEquals(0, pass[0], "first point");
+        assertEquals(0, pass[4], "last point");
+        assertEquals(0, pass[2], "heading point without an exit range");
+        assertEquals(Math.sqrt(2 * 0.9 * 3 * (2.0 - 0.05)), pass[1], 1e-9, "slow enough to stop at the heading point");
+        assertEquals(Math.sqrt(0.9 * 3 * 0.5), pass[3], 1e-9, "the corner");
+
+        PathDefinition capped = new PathDefinition("c", pts, new PathParams(null, 3.0, null, null, null, null), false);
+        assertEquals(3.0, PathMath.passSpeeds(pts, PathMath.resolveAll(capped), 5.0, 3.0, 0.05, 0)[1], 1e-9, "the path's max speed");
+    }
+
+    @Test
+    void interpolatedTurnFinishesAtTheExitRange() {
+        // heading 0 -> heading 90 over 2 m; point 1 is left 0.5 m early, so the turn is done there
+        PathParams exit = new PathParams(null, null, null, 0.5, null, true);
+        List<PathPoint> pts = List.of(pt(0, 0, 0.0, null), pt(2, 0, 90.0, exit), pt(4, 0, 90.0, exit));
+        PathDefinition def = new PathDefinition("t", pts, null, false);
+        ResolvedParams[] params = PathMath.resolveAll(def);
+        double[] prefix = PathMath.prefixDistances(pts);
+        assertEquals(90, PathMath.desiredHeadingDeg(pts, prefix, params, 1, 1.5, 0, 0, 0, 0), 1e-9, "all the way round at the exit range");
+        assertEquals(45, PathMath.desiredHeadingDeg(pts, prefix, params, 1, 0.75, 0, 0, 0, 0), 1e-9, "halfway through the shortened turn");
+        // the handoff to point 2 doesn't make the heading jump
+        assertEquals(PathMath.desiredHeadingDeg(pts, prefix, params, 1, 1.5, 0, 0, 0, 0),
+            PathMath.desiredHeadingDeg(pts, prefix, params, 2, 1.5, 0, 0, 0, 0), 1e-9);
+    }
+
+    @Test
+    void headingRateIsHowFastTheTurnMovesAlongThePath() {
+        List<PathPoint> pts = List.of(pt(0, 0, 0.0, null), pt(2, 0, 90.0, interp(true)));
+        PathDefinition def = new PathDefinition("t", pts, null, false);
+        ResolvedParams[] params = PathMath.resolveAll(def);
+        double[] prefix = PathMath.prefixDistances(pts);
+        // halfway at 1 m/s: 90 deg * smoothstep slope 1.5 * (1 m/s / 2 m)
+        assertEquals(67.5, PathMath.desiredHeadingRateDegPerSec(pts, prefix, params, 1, 1, 0, 1, 0, 0, 0, 0), 1e-9);
+        assertEquals(0, PathMath.desiredHeadingRateDegPerSec(pts, prefix, params, 1, 1, 0, 0, 0, 0, 0, 0), 1e-9, "standing still");
+        assertEquals(0, PathMath.desiredHeadingRateDegPerSec(pts, prefix, params, 1, 1, 0, 0, 1, 0, 0, 0), 1e-9, "moving sideways");
+
+        List<PathPoint> snap = List.of(pt(0, 0, 0.0, null), pt(2, 0, 90.0, interp(false)));
+        PathDefinition snapDef = new PathDefinition("s", snap, null, false);
+        assertEquals(0, PathMath.desiredHeadingRateDegPerSec(snap, PathMath.prefixDistances(snap), PathMath.resolveAll(snapDef),
+            1, 1, 0, 1, 0, 0, 0, 0), 1e-9, "no interpolation: aims straight for the heading, no feedforward");
+    }
+
+    @Test
     void slewLimitsTheWholeVector() {
         double[] v = PathMath.slew(0, 0, 3, 4, 0.5);
         assertEquals(0.5, Math.hypot(v[0], v[1]), 1e-9);

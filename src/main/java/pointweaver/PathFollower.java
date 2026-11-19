@@ -64,15 +64,21 @@ public final class PathFollower {
     /** Drive for one loop. Starts the path first if {@link #start()} wasn't called. */
     public void update() {
         if (!started) start();
-        Pose2d pose = drivetrain.getState().Pose;
-        FollowerCore.Output out = core.update(pose.getX(), pose.getY(), pose.getRotation().getDegrees(), Timer.getTimestamp());
+        var state = drivetrain.getState();
+        Pose2d pose = state.Pose;
+        // braking uses what the robot is actually doing, not just what it was told
+        ChassisVelocities field = state.Velocity.toFieldRelative(pose.getRotation());
+        FollowerCore.Output out = core.update(pose.getX(), pose.getY(), pose.getRotation().getDegrees(),
+            field.vx, field.vy, Timer.getTimestamp());
         if (out.finished) {
             drivetrain.setControl(idle);
         } else {
             drivetrain.setControl(drive
                 .withVelocityX(out.vx)
                 .withVelocityY(out.vy)
-                .withTargetDirection(Rotation2d.fromDegrees(out.headingDeg)));
+                .withTargetDirection(Rotation2d.fromDegrees(out.headingDeg))
+                // the turn rate the path asks for, so the heading P controller only corrects errors instead of lagging
+                .withTargetRateFeedforward(Math.toRadians(out.headingRateDegPerSec)));
         }
         telemetry.update(pose, core.path(), out);
         if (out.finished) ended();

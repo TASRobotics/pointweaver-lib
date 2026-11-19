@@ -134,18 +134,82 @@ final class PathMath {
 
     /**
      * Fastest speed toward a point that can still slow down to {@code vEnd} by the time it gets there:
-     * {@code sqrt(vEnd² + 2·0.9·a·(d − vNow·dt))}. The 90% and the one-loop look-ahead keep it from
-     * overshooting, since steering and braking share the same acceleration budget.
+     * {@code sqrt(vEnd² + 2·0.9·a·(d − vNow·(dt + lag)))}. The 90% and the look-ahead keep it from
+     * overshooting: steering and braking share the same acceleration budget, and the robot covers
+     * {@code vNow·(dt + lag)} before a new command takes effect.
      *
-     * @param d distance to the point (m)
-     * @param vNow current commanded speed (m/s)
-     * @param vEnd speed allowed at the point (0 = stop there)
+     * @param d distance to where the speed has to be down to vEnd (m)
+     * @param vNow current speed (m/s)
+     * @param vEnd speed allowed there (0 = stop)
      * @param accel acceleration limit (m/s²)
      * @param dt loop period (s)
+     * @param lag how long the drivetrain takes to follow a new velocity command (s)
      */
-    static double brakingSpeed(double d, double vNow, double vEnd, double accel, double dt) {
-        double dPlan = Math.max(0.0, d - vNow * dt);
+    static double brakingSpeed(double d, double vNow, double vEnd, double accel, double dt, double lag) {
+        double dPlan = Math.max(0.0, d - vNow * (dt + lag));
         return Math.sqrt(vEnd * vEnd + 2.0 * BRAKE_MARGIN * accel * dPlan);
+    }
+
+    /** {@link #brakingSpeed(double, double, double, double, double, double)} for a drivetrain with no lag. */
+    static double brakingSpeed(double d, double vNow, double vEnd, double accel, double dt) {
+        return brakingSpeed(d, vNow, vEnd, accel, dt, 0.0);
+    }
+
+    /**
+     * Fastest speed for turning at {@code p}, from the direction prev→p onto p→next, so the turn fits inside the
+     * circle of radius {@code r} around p where the robot moves on to the next point. A turn of angle θ at the
+     * acceleration limit is an arc of radius R = v²/a that starts R·tan(θ/2) before the corner, so it fits while
+     * {@code v ≤ sqrt(0.9·a·r / tan(θ/2))}. Straight through: no limit. Doubling back, or a zero-length side: 0.
+     *
+     * <p>A drivetrain that takes {@code lag} seconds to respond starts the turn v·lag late, leaving r − v·lag to fit
+     * it in: v² = k·(r − v·lag) with k = 0.9·a / tan(θ/2), so v = (√(k²·lag² + 4·k·r) − k·lag) / 2.
+     */
+    static double cornerSpeed(PathPoint prev, PathPoint p, PathPoint next, double r, double accel, double lag) {
+        double ax = p.x - prev.x;
+        double ay = p.y - prev.y;
+        double bx = next.x - p.x;
+        double by = next.y - p.y;
+        double la = Math.hypot(ax, ay);
+        double lb = Math.hypot(bx, by);
+        if (la <= EPS || lb <= EPS) return 0.0;
+        double theta = Math.acos(clamp((ax * bx + ay * by) / (la * lb), -1.0, 1.0));
+        double t = Math.tan(theta / 2.0);
+        if (t <= 1e-6) return Double.POSITIVE_INFINITY;
+        double k = BRAKE_MARGIN * accel / t;
+        return (Math.sqrt(k * k * lag * lag + 4.0 * k * r) - k * lag) / 2.0;
+    }
+
+    /**
+     * The speed the robot may still have when it moves on from each point (m/s), so it doesn't brake to a stop at
+     * every point it only passes through. 0 means stop there: the first and last points, and heading points without
+     * an early exit range (they have to settle on their heading). Every other point gets the lowest of:
+     * <ul>
+     *   <li>its corner ({@link #cornerSpeed}), turning inside its early exit range, or the position tolerance
+     *       if it has none, allowing for the drivetrain's response lag;</li>
+     *   <li>the next point: slow enough to still get down to that point's speed in the room between them;</li>
+     *   <li>this point's and the next point's max speed.</li>
+     * </ul>
+     * minSpeed isn't part of this; it still floors the planned speed as before.
+     */
+    static double[] passSpeeds(List<PathPoint> pts, ResolvedParams[] params, double robotMax, double robotAccel,
+            double posTolerance, double lag) {
+        final int n = pts.size();
+        double[] pass = new double[n];
+        for (int k = n - 2; k >= 1; k--) {
+            PathPoint p = pts.get(k);
+            PathPoint next = pts.get(k + 1);
+            ResolvedParams here = params[k];
+            ResolvedParams after = params[k + 1];
+            if (p.theta != null && !here.hasEarlyExit()) continue; // stop and turn
+            double accel = Math.min(Math.min(here.maxAccel, after.maxAccel), robotAccel);
+            double r = here.hasEarlyExit() ? here.earlyExitRange : posTolerance;
+            double rNext = k + 1 < n - 1 && after.hasEarlyExit() ? after.earlyExitRange : 0.0;
+            double room = Math.max(0.0, dist(p.x, p.y, next.x, next.y) - r - rNext);
+            double reach = Math.sqrt(pass[k + 1] * pass[k + 1] + 2.0 * BRAKE_MARGIN * accel * room);
+            double cap = Math.min(Math.min(here.maxSpeed, after.maxSpeed), robotMax);
+            pass[k] = Math.min(Math.min(cornerSpeed(pts.get(k - 1), p, next, r, accel, lag), reach), cap);
+        }
+        return pass;
     }
 
     /**
@@ -181,16 +245,49 @@ final class PathMath {
 
         if (!params[b].interpolate) return toDeg;
 
+        double[] tr = turnLengths(pts, prefix, params, a, b, k, poseX, poseY, startX, startY);
+        if (tr[0] <= EPS) return toDeg;
+        double progress = smoothstep(clamp(1.0 - tr[1] / tr[0], 0.0, 1.0));
+        return fromDeg + shortestAngleDeg(fromDeg, toDeg) * progress;
+    }
+
+    /**
+     * {total, remaining}: how long the turn from heading point a to heading point b is, and how much of it is left,
+     * measured along the path. If the robot moves on from b at an early exit range (b isn't the last point), the turn
+     * ends there instead of at b, so the heading is all the way round when b counts as done (no jump at the handoff).
+     */
+    private static double[] turnLengths(List<PathPoint> pts, double[] prefix, ResolvedParams[] params, int a, int b, int k,
+            double poseX, double poseY, double startX, double startY) {
         PathPoint target = pts.get(k);
-        // whole sandwich length, and how much of it is left (along the path, not straight-line)
         double total = a >= 0
             ? prefix[b] - prefix[a]
             : dist(startX, startY, pts.get(0).x, pts.get(0).y) + prefix[b] - prefix[0];
         double remaining = dist(poseX, poseY, target.x, target.y) + prefix[b] - prefix[k];
+        double exit = b < pts.size() - 1 && params[b].hasEarlyExit() ? params[b].earlyExitRange : 0.0;
+        return new double[] {total - exit, Math.max(0.0, remaining - exit)};
+    }
 
-        if (total <= EPS) return toDeg;
-        double progress = smoothstep(clamp(1.0 - remaining / total, 0.0, 1.0));
-        return fromDeg + shortestAngleDeg(fromDeg, toDeg) * progress;
+    /**
+     * How fast the heading from {@link #desiredHeadingDeg} is turning (deg/s) while the robot drives toward points[k]
+     * at (vx, vy): the heading controller's feedforward, so it doesn't lag behind a turn spread along the path.
+     * 0 while holding a heading, or aiming straight for the next one without interpolation.
+     */
+    static double desiredHeadingRateDegPerSec(List<PathPoint> pts, double[] prefix, ResolvedParams[] params, int k,
+            double poseX, double poseY, double vx, double vy, double startX, double startY, double startHeadingDeg) {
+        int a = prevHeadingIndex(pts, k);
+        int b = nextHeadingIndex(pts, k);
+        if (b < 0 || !params[b].interpolate) return 0.0;
+        double fromDeg = a >= 0 ? pts.get(a).theta : startHeadingDeg;
+        double[] tr = turnLengths(pts, prefix, params, a, b, k, poseX, poseY, startX, startY);
+        if (tr[0] <= EPS) return 0.0;
+        double u = 1.0 - tr[1] / tr[0];
+        if (u <= 0.0 || u >= 1.0) return 0.0;
+        PathPoint target = pts.get(k);
+        double d = dist(poseX, poseY, target.x, target.y);
+        if (d <= EPS) return 0.0;
+        // what's left shrinks as fast as the robot closes on its target; smoothstep's slope is 6u(1 − u)
+        double closing = ((target.x - poseX) * vx + (target.y - poseY) * vy) / d;
+        return shortestAngleDeg(fromDeg, pts.get(b).theta) * 6.0 * u * (1.0 - u) * closing / tr[0];
     }
 
     /**

@@ -11,17 +11,25 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 /**
- * Drives {@link FollowerCore} with the same kinematic model as the PointWeaver app's ghost
- * (src/sim/simulate.ts): the robot moves at the commanded velocity, and heading follows a P controller
- * like CTRE's. If the timing numbers here change, the robot and the app's ghost no longer agree.
+ * Drives {@link FollowerCore} with the same model as the PointWeaver app's ghost (src/sim/simulate.ts): the
+ * robot's velocity closes in on the command with a time constant of the settings' responseLag, and heading
+ * follows a P controller plus the follower's turn-rate feedforward, like CTRE's facing-angle request.
+ * If the timing numbers here change, the robot and the app's ghost no longer agree.
  */
 class FollowerCoreSimTest {
     static final double DT = 0.02;
     static final double ROT_KP = 2.0;
     static final double MAX_ANGULAR_RATE = Math.toRadians(918);
 
+    /** the library's default drivetrain lag */
+    static final double LAG = 0.08;
+
     static FollowerSettings settings(double accel) {
-        return new FollowerSettings(6.48, accel, 5.0, 0, 0, 0.05, 2.0, DT);
+        return settings(accel, LAG);
+    }
+
+    static FollowerSettings settings(double accel, double lag) {
+        return new FollowerSettings(6.48, accel, 5.0, 0, 0, 0.05, 2.0, DT, lag);
     }
 
     static final class Run {
@@ -41,20 +49,24 @@ class FollowerCoreSimTest {
         PathPoint first = def.points.get(0);
         double x = first.x, y = first.y, h = first.theta != null ? first.theta : 0;
         double t = 0, lastVx = 0, lastVy = 0;
+        double vx = 0, vy = 0; // the drivetrain's actual velocity, lagging the command
+        double follow = settings.responseLag > 0 ? Math.min(1, DT / settings.responseLag) : 1;
         core.start(x, y, h, t);
         int index = 0;
         PathPoint last = def.points.get(def.points.size() - 1);
         PathPoint beforeLast = def.points.get(Math.max(0, def.points.size() - 2));
         double lastLen = PathMath.dist(beforeLast.x, beforeLast.y, last.x, last.y);
         for (int step = 0; step < 100_000; step++) {
-            FollowerCore.Output out = core.update(x, y, h, t);
+            FollowerCore.Output out = core.update(x, y, h, vx, vy, t);
             if (!out.finished) run.maxDeltaV = Math.max(run.maxDeltaV, Math.hypot(out.vx - lastVx, out.vy - lastVy));
             lastVx = out.vx;
             lastVy = out.vy;
             double err = Math.toRadians(PathMath.shortestAngleDeg(h, out.headingDeg));
-            double omega = PathMath.clamp(ROT_KP * err, -MAX_ANGULAR_RATE, MAX_ANGULAR_RATE);
-            x += out.vx * DT;
-            y += out.vy * DT;
+            double omega = PathMath.clamp(ROT_KP * err + Math.toRadians(out.headingRateDegPerSec), -MAX_ANGULAR_RATE, MAX_ANGULAR_RATE);
+            vx += (out.vx - vx) * follow;
+            vy += (out.vy - vy) * follow;
+            x += vx * DT;
+            y += vy * DT;
             h = ((h + Math.toDegrees(omega * DT) + 180) % 360 + 360) % 360 - 180;
             t += DT;
             if (lastLen > PathMath.EPS && core.targetIndex() == def.points.size() - 1) {
@@ -96,34 +108,79 @@ class FollowerCoreSimTest {
     void matchesTheAppGhost() throws Exception {
         // the exact numbers the app's simulatePath() prints for these paths with these settings
         Run run = simulate(testpath(), settings(3.0));
-        assertEquals("6.66", String.format("%.2f", run.duration));
-        assertEquals("0.02 0.74 1.44 2.16 2.84 3.54 4.22 6.66", fmt(run.pointTimes));
+        assertEquals("6.14", String.format("%.2f", run.duration));
+        assertEquals("0.02 0.80 1.58 2.36 3.12 3.90 4.66 6.14", fmt(run.pointTimes));
         assertEquals(4.707, run.endX, 0.05);
         assertEquals(1.293, run.endY, 0.05);
         assertEquals(135, run.endHeading, 2.0);
 
-        assertEquals("0.02 2.26", fmt(simulate(line(), settings(3.0)).pointTimes));
-        assertEquals("0.02 1.82 4.14", fmt(simulate(corner(), settings(3.0)).pointTimes));
+        assertEquals("0.02 2.36", fmt(simulate(line(), settings(3.0)).pointTimes));
+        assertEquals("0.02 2.04 4.42", fmt(simulate(corner(), settings(3.0)).pointTimes));
     }
 
     @Test
     void neverExceedsTheAccelerationLimit() throws Exception {
-        for (double a : new double[] {3, 4}) {
-            for (PathDefinition def : List.of(testpath(), line(), corner())) {
-                Run run = simulate(def, settings(a));
-                assertTrue(run.maxDeltaV <= a * DT + 1e-9, def.name + " a=" + a + " jumped " + run.maxDeltaV / DT + " m/s^2");
+        for (double lag : new double[] {0, LAG}) {
+            for (double a : new double[] {3, 4}) {
+                for (PathDefinition def : List.of(testpath(), line(), corner())) {
+                    Run run = simulate(def, settings(a, lag));
+                    assertTrue(run.maxDeltaV <= a * DT + 1e-9, def.name + " a=" + a + " lag=" + lag + " jumped " + run.maxDeltaV / DT + " m/s^2");
+                }
             }
         }
     }
 
     @Test
     void stopsWithoutOvershooting() throws Exception {
-        for (double a : new double[] {3, 4}) {
-            for (PathDefinition def : List.of(testpath(), line(), corner())) {
-                Run run = simulate(def, settings(a));
-                assertTrue(run.overshoot < 0.01, def.name + " a=" + a + " overshot " + run.overshoot + " m");
+        for (double lag : new double[] {0, LAG}) {
+            for (double a : new double[] {3, 4}) {
+                for (PathDefinition def : List.of(testpath(), line(), corner())) {
+                    Run run = simulate(def, settings(a, lag));
+                    assertTrue(run.overshoot < 0.01, def.name + " a=" + a + " lag=" + lag + " overshot " + run.overshoot + " m");
+                }
             }
         }
+    }
+
+    @Test
+    void passesThroughPointsWithoutStopping() {
+        // a translation point in the middle of a straight line used to be braked toward; now the robot carries speed
+        PathDefinition three = new PathDefinition("3", List.of(new PathPoint(1, 1, 0.0, null, null), new PathPoint(3, 1, null, null, null),
+            new PathPoint(5, 1, 0.0, null, null)), null, false);
+        FollowerCore core = new FollowerCore(three, settings(3.0, 0), null);
+        core.start(1, 1, 0, 0);
+        double x = 1, t = 0, speedAtMiddle = 0;
+        for (int i = 0; i < 1000 && !core.isFinished(); i++) {
+            FollowerCore.Output out = core.update(x, 1, 0, t);
+            if (core.targetIndex() == 2 && speedAtMiddle == 0) speedAtMiddle = out.speed();
+            x += out.vx * DT;
+            t += DT;
+        }
+        assertTrue(speedAtMiddle > 2.0, "went past the middle point at " + speedAtMiddle + " m/s");
+        assertTrue(simulate(three, settings(3.0, 0)).duration < simulate(line(), settings(3.0, 0)).duration + 0.1,
+            "about as quick as the same line without the middle point");
+    }
+
+    @Test
+    void stopsOnTheLastPointWhenComingInSideways() {
+        // already moving 2.5 m/s across the line to the only point, 1.5 m away: it has to bleed that off, not orbit
+        PathDefinition one = new PathDefinition("1", List.of(new PathPoint(2.5, 0, null, null, null)), null, false);
+        FollowerCore core = new FollowerCore(one, settings(4.0, 0), null);
+        core.start(1, 0, 0, 0, 2.5, 0);
+        double x = 1, y = 0, vx = 0, vy = 2.5, t = 0, closest = Double.MAX_VALUE, furthestAfterClosest = 0;
+        for (int i = 0; i < 2000 && !core.isFinished(); i++) {
+            FollowerCore.Output out = core.update(x, y, 0, vx, vy, t);
+            vx = out.vx;
+            vy = out.vy;
+            x += vx * DT;
+            y += vy * DT;
+            t += DT;
+            double d = Math.hypot(2.5 - x, y);
+            closest = Math.min(closest, d);
+            furthestAfterClosest = Math.max(furthestAfterClosest, d - closest);
+        }
+        assertTrue(core.isFinished(), "got there");
+        assertTrue(furthestAfterClosest < 0.05, "swung back out " + furthestAfterClosest + " m after getting close");
     }
 
     @Test

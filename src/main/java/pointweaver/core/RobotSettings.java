@@ -22,9 +22,18 @@ public final class RobotSettings {
     /** Bumper to bumper (m). Only the app's ghost uses these. */
     public final Double robotLength;
     public final Double robotWidth;
+    /** How long the drivetrain takes to follow a new velocity command (s). */
+    public final Double responseLag;
 
     public RobotSettings(Double maxSpeed, Double maxAccel, double[] translationPID, double[] headingPID,
             Double positionTolerance, Double headingTolerance, Double maxAngularRate, Double robotLength, Double robotWidth) {
+        this(maxSpeed, maxAccel, translationPID, headingPID, positionTolerance, headingTolerance, maxAngularRate,
+            robotLength, robotWidth, null);
+    }
+
+    public RobotSettings(Double maxSpeed, Double maxAccel, double[] translationPID, double[] headingPID,
+            Double positionTolerance, Double headingTolerance, Double maxAngularRate, Double robotLength, Double robotWidth,
+            Double responseLag) {
         this.maxSpeed = maxSpeed;
         this.maxAccel = maxAccel;
         this.translationPID = translationPID != null ? translationPID.clone() : null;
@@ -34,5 +43,6 @@ public final class RobotSettings {
         this.maxAngularRate = maxAngularRate;
         this.robotLength = robotLength;
         this.robotWidth = robotWidth;
+        this.responseLag = responseLag;
     }
 }

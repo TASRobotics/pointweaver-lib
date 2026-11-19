@@ -72,27 +72,34 @@ Edit it in the app's Robot panel. The app can also fill speed, spin rate and siz
 | `maxSpeed` | required | Top speed (m/s), e.g. `kSpeedAt12Volts`. Paths can only go slower. |
 | `maxAccel` | 3.0 | Acceleration limit (m/s²) for speeding up, braking and corners. Raise it until the wheels slip, then back off. |
 | `translationPID` | [5, 0, 0] | Final-approach gain on distance to the point. Only takes over in the last ~20 cm. |
-| `headingPID` | [2, 0, 0] | CTRE heading controller gains. |
+| `headingPID` | [2, 0, 0] | CTRE heading controller gains. The path's turn rate is sent as feedforward, so this only corrects errors. |
 | `positionTolerance` | 0.05 | A point counts as reached within this distance of it (m). |
 | `headingTolerance` | 2 | Heading points also need this (deg). |
+| `responseLag` | 0.08 | How long the drivetrain takes to follow a velocity command (s). Braking and corners allow for it. The app's ghost lags this much too. 0 = instantly. |
 | `maxAngularRate`, `robotLength`, `robotWidth` | | Used by the app's preview (and heading planning, coming next). |
 
 Rather set things in code? `PointWeaverConfig.fromDeploy().headingPID(3, 0, 0).build()` overrides single values, and `PointWeaverConfig.builder(maxSpeed)` skips the file entirely.
 
 ## How speed is chosen
 
-Each loop, toward the current point at distance `d`:
+When the path loads, every point gets a **pass speed**: how fast the robot may still be going when it moves on from it. It's 0 (stop there) for the first and last points and for heading points without an early exit range. Otherwise it's the lowest of:
 
-1. `braking = sqrt(2 · 0.9·maxAccel · d)` is the fastest speed that can still stop at the point. The 0.9 leaves room for steering.
-2. `planned = min(braking, translationPID(d))`, clamped to the point's min/max speed.
-3. The commanded velocity moves toward `planned` in the point's direction by at most `maxAccel · 0.02` per loop, as a vector. That one limit covers starting, stopping and turning, so corners round off on their own.
+- the corner: a turn of angle θ at `maxAccel` has to fit inside the early exit range `r` (or the position tolerance), started `v · responseLag` late: `v² = 0.9·a·(r − v·lag) / tan(θ/2)`. Points in a straight line get no limit.
+- the next point: slow enough to still get down to its pass speed in the room between them.
+- this and the next point's max speed.
+
+Then each loop, toward the current point at distance `d`, with `v` the robot's measured speed:
+
+1. Passing through: `planned = sqrt(pass² + 2 · 0.9·maxAccel · (d − r − v·(0.02 + responseLag)))`, the fastest speed that's down to the pass speed when the robot moves on. The 0.9 leaves room for steering.
+2. Stopping there: `planned = min(braking, translationPID(d))`, where `braking` is the same curve down to 0 at the point, with room taken off for cancelling any sideways velocity first.
+3. `planned` is clamped to the point's min/max speed, and the commanded velocity moves toward it in the point's direction by at most `maxAccel · 0.02` per loop, as a vector. That one limit covers starting, stopping and turning, so corners round off on their own.
 
 ## Path rules
 
 The JSON format and every field are described in [docs/path-format.md](docs/path-format.md). The short version:
 
 - Points are driven to in order. A point **without** a heading is translation-only.
-- `interpolate` on a heading point means "turn smoothly into this heading" across the stretch since the previous heading point. Off means aim for it right away, as soon as the previous heading point is done. Turning it on for the whole path turns it on for every heading point.
+- `interpolate` on a heading point means "turn smoothly into this heading" across the stretch since the previous heading point, finishing as the robot reaches the point's early exit range (so nothing jumps when it moves on). Off means aim for it right away, as soon as the previous heading point is done. Turning it on for the whole path turns it on for every heading point.
 - `earlyExitRange` moves on early, which is good for flowing through points. The **last point always arrives**: early exit and min speed don't apply to it.
 - Translation-only points never wait on heading.
 - Events fire at a fraction of the way to the next point. Anything skipped by early exit still fires when the point finishes.

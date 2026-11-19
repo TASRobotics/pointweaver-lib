@@ -11,10 +11,13 @@ import pointweaver.core.PathMath.ResolvedParams;
  * velocities and a target heading. No WPILib or CTRE types, so it runs the same on any robot framework
  * (TimedRobot, command-based, 2027 OpModes) and in unit tests.
  *
- * <p>Each point is driven to in a straight line, in order. Speed toward a point is the slower of
- * the translation PID (final approach) and a braking curve that can still stop at the point, clamped to
- * the point's min/max speed. The commanded velocity then changes by at most {@code maxAccel·dt} per loop,
- * as a vector, so starting, stopping and corners are all acceleration-limited.
+ * <p>Each point is driven to in a straight line, in order. Points the robot only passes through get a speed
+ * it may carry past them ({@link PathMath#passSpeeds}: limited by the corner, the next point and max speed),
+ * and the robot drives at the fastest speed that can still slow to that by the time it moves on. Points it
+ * stops at (the last one, heading points without an early exit range, sharp turnarounds) use the slower of
+ * the translation PID (final approach) and a braking curve that can still stop there. Either way the speed is
+ * clamped to the point's min/max speed, and the commanded velocity changes by at most {@code maxAccel·dt} per
+ * loop, as a vector, so starting, stopping and corners are all acceleration-limited.
  *
  * <p>A point finishes on its timeout, inside its early exit range (not the last point), or inside the
  * position tolerance (plus heading tolerance for heading points).
@@ -42,6 +45,8 @@ public final class FollowerCore {
         public final double vy;
         /** Heading to point the robot at (deg, CCW from +x). */
         public final double headingDeg;
+        /** How fast that heading is turning (deg/s, CCW+): feedforward for the heading controller. */
+        public final double headingRateDegPerSec;
         /** Index of the point being driven to (the last index once finished). */
         public final int targetIndex;
         /** Straight-line distance to that point (m). */
@@ -51,10 +56,12 @@ public final class FollowerCore {
         /** The path is done; command zero speed. */
         public final boolean finished;
 
-        Output(double vx, double vy, double headingDeg, int targetIndex, double distance, double plannedSpeed, boolean finished) {
+        Output(double vx, double vy, double headingDeg, double headingRateDegPerSec, int targetIndex, double distance,
+                double plannedSpeed, boolean finished) {
             this.vx = vx;
             this.vy = vy;
             this.headingDeg = headingDeg;
+            this.headingRateDegPerSec = headingRateDegPerSec;
             this.targetIndex = targetIndex;
             this.distance = distance;
             this.plannedSpeed = plannedSpeed;
@@ -73,6 +80,8 @@ public final class FollowerCore {
     private final List<PathPoint> pts;
     private final double[] prefix;
     private final ResolvedParams[] params;
+    /** speed the robot may still have when it moves on from each point (0 = stop there) */
+    private final double[] passSpeeds;
     private final boolean[][] fired;
     private final Pid pid;
 
@@ -99,6 +108,8 @@ public final class FollowerCore {
         this.pts = path.points;
         this.prefix = PathMath.prefixDistances(pts);
         this.params = PathMath.resolveAll(path);
+        this.passSpeeds = PathMath.passSpeeds(pts, params, settings.maxSpeed, settings.maxAcceleration, settings.positionTolerance,
+            settings.responseLag);
         this.fired = new boolean[pts.size()][];
         for (int i = 0; i < pts.size(); i++) fired[i] = new boolean[pts.get(i).events.size()];
         this.pid = new Pid(settings.translationKp, settings.translationKi, settings.translationKd, settings.period);
@@ -141,8 +152,21 @@ public final class FollowerCore {
         finished = pts.isEmpty();
     }
 
-    /** One loop: where to drive this period. Call {@link #start} first. */
+    /**
+     * One loop, when the robot's measured velocity isn't available: the last command stands in for it.
+     * Call {@link #start} first.
+     */
     public Output update(double x, double y, double headingDeg, double timeSec) {
+        return update(x, y, headingDeg, cmdVx, cmdVy, timeSec);
+    }
+
+    /**
+     * One loop: where to drive this period. Call {@link #start} first.
+     *
+     * @param measuredVx the robot's measured field-relative velocity (m/s), used for braking
+     * @param measuredVy see measuredVx
+     */
+    public Output update(double x, double y, double headingDeg, double measuredVx, double measuredVy, double timeSec) {
         if (!started) throw new IllegalStateException("call start() before update()");
         if (finished) return stopped(headingDeg);
 
@@ -154,11 +178,24 @@ public final class FollowerCore {
         double xError = target.x - x;
         double yError = target.y - y;
         double distance = Math.hypot(xError, yError);
+        double measuredSpeed = Math.hypot(measuredVx, measuredVy);
 
-        // slower of: the final-approach PID, or the fastest speed we can still stop from by the point
         double approach = Math.abs(pid.calculate(distance, 0));
-        double braking = PathMath.brakingSpeed(distance, Math.hypot(cmdVx, cmdVy), 0.0, accel, settings.period);
-        double planned = PathMath.clampSpeed(Math.min(approach, braking), prm, isLast, settings.maxSpeed);
+        double passSpeed = passSpeeds[index];
+        double planned;
+        if (passSpeed > PathMath.EPS) {
+            // passing through: fastest speed that's down to the pass speed by the time the robot moves on
+            double moveOn = prm.hasEarlyExit() ? prm.earlyExitRange : 0.0;
+            planned = PathMath.brakingSpeed(distance - moveOn, measuredSpeed, passSpeed, accel, settings.period, settings.responseLag);
+        } else {
+            // stopping here: slower of the final-approach PID and the fastest speed that can still stop at the point,
+            // leaving room to cancel any sideways velocity first (the straight-line braking curve can't see it)
+            double sideways = distance > PathMath.EPS ? Math.abs(xError * measuredVy - yError * measuredVx) / distance : 0.0;
+            double room = distance - sideways * sideways / (2.0 * accel);
+            double braking = PathMath.brakingSpeed(room, measuredSpeed, 0.0, accel, settings.period, settings.responseLag);
+            planned = Math.min(approach, braking);
+        }
+        planned = PathMath.clampSpeed(planned, prm, isLast, settings.maxSpeed);
         double tx = 0;
         double ty = 0;
         if (distance > PathMath.EPS) {
@@ -170,12 +207,14 @@ public final class FollowerCore {
         cmdVy = v[1];
 
         double wantDeg = PathMath.desiredHeadingDeg(pts, prefix, params, index, x, y, startX, startY, startHeadingDeg);
+        double wantRate = PathMath.desiredHeadingRateDegPerSec(pts, prefix, params, index, x, y, cmdVx, cmdVy,
+            startX, startY, startHeadingDeg);
 
         if (index > 0) fireEvents(index - 1, PathMath.segmentProgress(pts.get(index - 1), target, x, y));
 
         boolean done = PathMath.isPointFinished(target, prm, isLast, x, y, headingDeg, timeSec - pointStartTime,
             settings.positionTolerance, settings.headingToleranceDeg);
-        if (!done) return new Output(cmdVx, cmdVy, wantDeg, index, distance, planned, false);
+        if (!done) return new Output(cmdVx, cmdVy, wantDeg, wantRate, index, distance, planned, false);
 
         // point finished: anything early exit skipped over still fires
         if (index > 0) fireEvents(index - 1, 1.0);
@@ -184,12 +223,12 @@ public final class FollowerCore {
             finished = true;
             cmdVx = 0;
             cmdVy = 0;
-            return new Output(0, 0, wantDeg, index, distance, 0, true);
+            return new Output(0, 0, wantDeg, 0, index, distance, 0, true);
         }
         index++;
         pointStartTime = timeSec;
         pid.reset();
-        return new Output(cmdVx, cmdVy, wantDeg, index - 1, distance, planned, false);
+        return new Output(cmdVx, cmdVy, wantDeg, wantRate, index - 1, distance, planned, false);
     }
 
     /** Stop early (e.g. auto ended). Further updates return zero speed. */
@@ -210,7 +249,7 @@ public final class FollowerCore {
 
     private Output stopped(double headingDeg) {
         int last = Math.max(0, Math.min(index, pts.size() - 1));
-        return new Output(0, 0, headingDeg, last, 0, 0, true);
+        return new Output(0, 0, headingDeg, 0, last, 0, 0, true);
     }
 
     private void fireEvents(int pointIdx, double progress) {

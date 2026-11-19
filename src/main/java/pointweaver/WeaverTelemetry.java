@@ -31,6 +31,7 @@ final class WeaverTelemetry {
     private IntegerPublisher targetIndex;
     private DoublePublisher distance;
     private DoublePublisher desiredHeading;
+    private DoublePublisher desiredHeadingRate;
     private DoublePublisher vx;
     private DoublePublisher vy;
     private DoublePublisher speed;
@@ -49,6 +50,7 @@ final class WeaverTelemetry {
         targetIndex = t.getIntegerTopic("targetIndex").publish();
         distance = t.getDoubleTopic("distance").publish();
         desiredHeading = t.getDoubleTopic("desiredHeadingDeg").publish();
+        desiredHeadingRate = t.getDoubleTopic("desiredHeadingRateDps").publish();
         vx = t.getDoubleTopic("vx").publish();
         vy = t.getDoubleTopic("vy").publish();
         speed = t.getDoubleTopic("speed").publish();
@@ -71,6 +73,7 @@ final class WeaverTelemetry {
         targetIndex.set(out.targetIndex);
         distance.set(out.distance);
         desiredHeading.set(out.headingDeg);
+        desiredHeadingRate.set(out.headingRateDegPerSec);
         vx.set(out.vx);
         vy.set(out.vy);
         speed.set(out.speed());
@@ -84,6 +87,7 @@ final class WeaverTelemetry {
         vy.set(0);
         speed.set(0);
         plannedSpeed.set(0);
+        desiredHeadingRate.set(0);
     }
 
     void event(String name) {

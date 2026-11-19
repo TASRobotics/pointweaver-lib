@@ -1,6 +1,14 @@
 # Changelog
 
-## 2027.0.0 (unreleased)
+## 2027.0.1 (unreleased)
+
+- **Pass speeds:** points the robot only passes through no longer get braked toward a stop. Each one gets a speed it may carry past it, limited by the corner (it has to fit inside the early exit range), the next point, and max speed. On a 17-point figure-eight that cut the lap from about 11.7 s to 10.6 s in a sim calibrated to a real robot, with the same shape; max speed now actually matters on straights.
+- **Braking on what the robot is doing:** braking uses the measured velocity instead of the last command, starts `responseLag` earlier, and on points it stops at, leaves room to cancel sideways velocity first. A robot coming into the last point sideways no longer swings past it and back.
+- **New `responseLag`** in robot.json / `PointWeaverConfig.Builder.responseLag` (default 0.08 s, about what a CTRE swerve measured). `FollowerCore.update` takes the measured velocity; the old overload uses the last command.
+- **Interpolated turns finish at the early exit range** instead of at the point, so the heading target no longer jumps when the robot moves on (it jumped about 22° per point with a 0.75 m exit range on 1.5 m spacing).
+- **Heading feedforward:** the path's turn rate goes to CTRE's `withTargetRateFeedforward`, so the heading controller no longer lags behind turns (typical error about 0.6° instead of 7.5° on the same figure-eight). Published as `desiredHeadingRateDps`.
+
+## 2027.0.0
 
 - WPILib 2027 alpha-7 and CTRE Phoenix 6 `26.70.0-alpha-2`. Java 25.
 - `alpha-8` branch: WPILib 2027 alpha-8, no code changes. Vendordeps still say `"wpilibYear": "2027_alpha7"`, because alpha-8 kept that year.

@@ -26,6 +26,8 @@ import pointweaver.core.RobotSettingsParser;
 public final class PointWeaverConfig {
     /** Deploy sub-folder with robot.json and paths/. */
     public static final String DEFAULT_DEPLOY_FOLDER = "pointweaver";
+    /** Default drivetrain response lag (s): about what a CTRE swerve measured, command to motion. */
+    public static final double DEFAULT_RESPONSE_LAG = 0.08;
 
     final double maxSpeed;
     final double maxAcceleration;
@@ -38,6 +40,7 @@ public final class PointWeaverConfig {
     final double positionTolerance;
     final double headingToleranceDeg;
     final double period;
+    final double responseLag;
     final String deployFolder;
     final boolean telemetry;
     final String telemetryTable;
@@ -54,6 +57,7 @@ public final class PointWeaverConfig {
         positionTolerance = b.positionTolerance;
         headingToleranceDeg = b.headingToleranceDeg;
         period = b.period;
+        responseLag = b.responseLag;
         deployFolder = b.deployFolder;
         telemetry = b.telemetry;
         telemetryTable = b.telemetryTable;
@@ -101,12 +105,13 @@ public final class PointWeaverConfig {
         if (s.headingPID != null) b.headingPID(s.headingPID[0], s.headingPID[1], s.headingPID[2]);
         if (s.positionTolerance != null) b.positionTolerance(s.positionTolerance);
         if (s.headingTolerance != null) b.headingTolerance(s.headingTolerance);
+        if (s.responseLag != null) b.responseLag(s.responseLag);
         return b;
     }
 
     FollowerSettings toSettings() {
         return new FollowerSettings(maxSpeed, maxAcceleration, translationKp, translationKi, translationKd,
-            positionTolerance, headingToleranceDeg, period);
+            positionTolerance, headingToleranceDeg, period, responseLag);
     }
 
     public static final class Builder {
@@ -121,6 +126,7 @@ public final class PointWeaverConfig {
         private double positionTolerance = 0.05;
         private double headingToleranceDeg = 2.0;
         private double period = 0.02;
+        private double responseLag = DEFAULT_RESPONSE_LAG;
         private String deployFolder = DEFAULT_DEPLOY_FOLDER;
         private boolean telemetry = true;
         private String telemetryTable = "PointWeaver";
@@ -166,6 +172,15 @@ public final class PointWeaverConfig {
         /** Robot loop period (s). Default 0.02. */
         public Builder period(double seconds) {
             period = seconds;
+            return this;
+        }
+
+        /**
+         * How long the drivetrain takes to follow a new velocity command (s). Braking starts this much earlier, so
+         * the robot doesn't overshoot. Default 0.08 (measured on a CTRE swerve); 0 = respond instantly.
+         */
+        public Builder responseLag(double seconds) {
+            responseLag = seconds;
             return this;
         }
 

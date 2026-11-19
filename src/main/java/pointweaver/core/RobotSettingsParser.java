@@ -51,7 +51,16 @@ public final class RobotSettingsParser {
             positive(o, "headingTolerance"),
             positive(o, "maxAngularRate"),
             positive(o, "robotLength"),
-            positive(o, "robotWidth"));
+            positive(o, "robotWidth"),
+            nonNegative(o, "responseLag"));
+    }
+
+    private static Double nonNegative(Map<?, ?> o, String key) {
+        Object v = o.get(key);
+        if (v == null) return null;
+        if (!(v instanceof Double)) throw bad("'" + key + "' must be a number");
+        if (!((Double) v >= 0)) throw bad("'" + key + "' can't be negative");
+        return (Double) v;
     }
 
     private static Double positive(Map<?, ?> o, String key) {
