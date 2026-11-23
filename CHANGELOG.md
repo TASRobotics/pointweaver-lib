@@ -1,6 +1,6 @@
 # Changelog
 
-## 2027.0.3 (unreleased)
+## 2027.0.3
 
 - **Turn direction per point:** `"turnDirection": "cw"` or `"ccw"` in a heading point's params makes an interpolated turn into it go that way round, even when the other way is shorter (`"auto"` or unset keeps the shorter way). Points only; ignored on the path. The heading feedforward follows the same turn. New `TurnDirection` enum and a `PathParams` constructor that takes it; the old constructor still works.
 
