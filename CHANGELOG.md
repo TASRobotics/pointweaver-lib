@@ -1,5 +1,9 @@
 # Changelog
 
+## 2027.0.2 (unreleased)
+
+- **Commands v3 adapter** (`pointweaver.command3.PointWeaverCommands`, needs the Commands V3 vendordep): `followPath(name)` requires the drivetrain if it's a `Mechanism` (or pass the mechanism: `followPath(name, swerve)`) and idles the drivetrain however it ends. `registerEvent(name, command)` starts the command on the next scheduler loop as its own command, so it outlives the path (until it finishes or the auto ends) instead of being canceled with it, and refuses a command that would take the drivetrain from a running path or the auto around it. The Commands v2 adapter is unchanged.
+
 ## 2027.0.1 (unreleased)
 
 - **Pass speeds:** points the robot only passes through no longer get braked toward a stop. Each one gets a speed it may carry past it, limited by the corner (it has to fit inside the early exit range), the next point, and max speed. On a 17-point figure-eight that cut the lap from about 11.7 s to 10.6 s in a sim calibrated to a real robot, with the same shape; max speed now actually matters on straights.

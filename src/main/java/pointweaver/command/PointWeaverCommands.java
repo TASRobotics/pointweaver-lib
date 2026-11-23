@@ -8,7 +8,8 @@ import pointweaver.core.PathDefinition;
 
 /**
  * Helpers for command-based (Commands v2) robots. Everything else in PointWeaver works without the
- * command framework; this is the only package that uses it.
+ * command framework; this is the only package that uses it. Commands v3 robots use
+ * {@link pointweaver.command3.PointWeaverCommands}.
  */
 public final class PointWeaverCommands {
     private PointWeaverCommands() {}

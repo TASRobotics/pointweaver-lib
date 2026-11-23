@@ -41,8 +41,10 @@ dependencies {
     compileOnly "org.wpilib.hal:hal-java:$wpilibVersion"
     compileOnly "org.wpilib.telemetry:telemetry-java:$wpilibVersion"
     compileOnly "org.wpilib.tunables:tunables-java:$wpilibVersion"
-    // Commands V2 is its own vendordep in 2027; only pointweaver.command needs it
+    // Commands V2 and V3 are their own vendordeps in 2027 (a robot can only have one); only pointweaver.command
+    // needs V2 and only pointweaver.command3 needs V3
     compileOnly "org.wpilib.commandsv2:commandsv2-java:$wpilibVersion"
+    compileOnly "org.wpilib:commandsv3-java:$wpilibVersion"
     compileOnly "com.ctre.phoenix6:wpiapi-java:$phoenixVersion"
 
     // Tests only touch pointweaver.core, which is plain Java.

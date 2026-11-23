@@ -44,7 +44,6 @@ classes in its own package and subpackages, and creates one when it's selected o
 
 ## Not done yet
 
-- A Commands v3 adapter (`org.wpilib.command3`). OpMode and TimedRobot users don't need one.
 - CTRE's `Phoenix6-frc2027-latest.json` (the vendordep's `requires` link for Phoenix) doesn't resolve yet.
   It's only used to prompt installing Phoenix; the UUID check works without it.
 

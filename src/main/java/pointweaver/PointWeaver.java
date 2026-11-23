@@ -30,7 +30,8 @@ import pointweaver.core.PathParser;
  * follower.stop();           // when the auto ends
  * }</pre>
  *
- * <p>Command-based robots can use {@code pointweaver.command.PointWeaverCommands} instead.
+ * <p>Command-based robots can use {@code pointweaver.command.PointWeaverCommands} (Commands v2) or
+ * {@code pointweaver.command3.PointWeaverCommands} (Commands v3) instead.
  * Paths are read from {@code src/main/deploy/pointweaver/paths/<name>.json}, the folder the PointWeaver app saves to.
  */
 public final class PointWeaver {

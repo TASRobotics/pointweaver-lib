@@ -9,7 +9,7 @@ No splines: the robot drives straight at each point, and the library works out h
 - Speed comes from a braking curve (it can always still stop at the point) and a final-approach P loop, with one acceleration limit for starting, stopping and corners.
 - Heading uses CTRE's `FieldCentricFacingAngle`, optionally interpolated smoothly between heading points.
 - Per-point overrides for speed, acceleration, early exit and timeout. Named events and optional odometry reset.
-- Works with OpModes, plain `TimedRobot`, and command-based (Commands V2).
+- Works with OpModes, plain `TimedRobot`, and command-based (Commands V2 or V3).
 
 ## Install
 
@@ -18,7 +18,8 @@ No splines: the robot drives straight at each point, and the library works out h
    ```
    https://tasrobotics.github.io/pointweaver-lib/2027/PointWeaver.json
    ```
-3. Using `PointWeaverCommands`? Also install the **Commands V2** vendordep that ships with WPILib.
+3. Using `PointWeaverCommands`? Also install the **Commands V2** or **Commands V3** vendordep that ships with WPILib
+   (whichever your robot uses; a robot can't have both).
 
 ## Files
 
@@ -54,12 +55,27 @@ public class TestPathAuto implements OpMode {
 
 `TimedRobot` works the same way: `start()` in `autonomousInit`, `update()` in `autonomousPeriodic`, `stop()` in `autonomousExit`.
 
-**Command-based** (Commands V2 vendordep):
+**Command-based, Commands V2** (`pointweaver.command`):
 
 ```java
 PointWeaverCommands.registerEvent("intake", intake.runCommand()); // must not require the drivetrain
 Command auto = PointWeaverCommands.followPath("testpath");
 ```
+
+**Command-based, Commands V3** (`pointweaver.command3`):
+
+```java
+// robot constructor, after PointWeaver.configure(drivetrain)
+PointWeaverCommands.registerEvent("intake", intake.runIntake());
+
+// auto: requires the drivetrain if it's a Mechanism, or pass the mechanism that owns it
+Scheduler.getDefault().schedule(PointWeaverCommands.followPath("testpath"));
+Command other = PointWeaverCommands.followPath("testpath", swerve);
+```
+
+In V3, an event's command starts on the next loop as its own command, not a child of the path, so it keeps running
+after the path ends until it finishes or the auto ends. If it needs the drivetrain while the path (or the auto
+around it) still holds it, it isn't started and an error goes to the Driver Station instead of canceling the auto.
 
 If a path file is missing or broken, the error goes to the Driver Station and the robot stays still. It doesn't crash.
 
@@ -120,7 +136,7 @@ Under `/PointWeaver/` on NetworkTables:
 
 - `pointweaver.core` is plain Java (no WPILib, no CTRE). All the following logic lives there and is unit tested.
 - `FollowerCoreSimTest` pins the follower to the PointWeaver app's ghost (exact timings on three paths), so the app preview and the robot can't drift apart.
-- The rest of `pointweaver` is thin glue: CTRE drivetrain, NetworkTables, deploy folder. `pointweaver.command` is the optional Commands v2 adapter.
+- The rest of `pointweaver` is thin glue: CTRE drivetrain, NetworkTables, deploy folder. `pointweaver.command` and `pointweaver.command3` are the optional Commands v2 and v3 adapters; each is compiled against its vendordep but not bundled, so a robot only needs the one it uses.
 - **Testing in a robot project without publishing:** put this repo next to it and add `includeBuild('../pointweaver-lib')` to its `settings.gradle`. Gradle uses the local source instead of the released jar.
 - **Releasing:** push a tag like `v2027.0.0` from `main`. GitHub Actions publishes the jar and the vendordep to GitHub Pages under `/2027/`, leaving the 2026 vendordep alone. Enable Pages on the `gh-pages` branch once.
 - **Coming from 2026:** [docs/migrating-to-2027.md](docs/migrating-to-2027.md) lists what changed.
