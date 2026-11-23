@@ -108,11 +108,11 @@ class FollowerCoreSimTest {
     void matchesTheAppGhost() throws Exception {
         // the exact numbers the app's simulatePath() prints for these paths with these settings
         Run run = simulate(testpath(), settings(3.0));
-        assertEquals("6.14", String.format("%.2f", run.duration));
-        assertEquals("0.02 0.80 1.58 2.36 3.12 3.90 4.66 6.14", fmt(run.pointTimes));
-        assertEquals(4.707, run.endX, 0.05);
-        assertEquals(1.293, run.endY, 0.05);
-        assertEquals(135, run.endHeading, 2.0);
+        assertEquals("6.26", String.format("%.2f", run.duration));
+        assertEquals("0.02 0.80 1.58 2.36 3.12 3.90 4.66 6.26", fmt(run.pointTimes));
+        assertEquals(4.693, run.endX, 0.05);
+        assertEquals(1.290, run.endY, 0.05);
+        assertEquals(133.1, run.endHeading, 0.5);
 
         assertEquals("0.02 2.36", fmt(simulate(line(), settings(3.0)).pointTimes));
         assertEquals("0.02 2.04 4.42", fmt(simulate(corner(), settings(3.0)).pointTimes));

@@ -15,13 +15,6 @@ final class PathMath {
 
     private PathMath() {}
 
-    /** smoothstep easing, clamped to [0, 1]. */
-    static double smoothstep(double x) {
-        if (x <= 0) return 0.0;
-        if (x >= 1) return 1.0;
-        return x * x * (3 - 2 * x);
-    }
-
     /** Signed shortest angle from start to end, in [-180, 180) degrees. */
     static double shortestAngleDeg(double startDeg, double endDeg) {
         return ((endDeg - startDeg) % 360.0 + 540.0) % 360.0 - 180.0;
@@ -247,42 +240,14 @@ final class PathMath {
     /**
      * Heading (degrees) to face while driving toward points[k].
      *
-     * <p>Every [point, trans, ..., point] sandwich goes from heading A to heading B.
-     * interpolate on B = smoothly turn from A to B over the whole sandwich (no snapping).
-     * interpolate off on B = aim for B as soon as the robot leaves A (turning as fast as the heading controller goes).
-     * Before the first heading point, "A" is wherever the robot was facing when the path started.
+     * <p>interpolate on heading point B = turn from the previous heading point A to B in proportion to the distance
+     * covered (no snapping); see {@link #turnCurve}. interpolate off on B = aim for B as soon as the robot leaves A
+     * (turning as fast as the heading controller goes). Before the first heading point, "A" is wherever the robot was
+     * facing when the path started.
      */
     static double desiredHeadingDeg(List<PathPoint> pts, double[] prefix, ResolvedParams[] params, int k,
             double poseX, double poseY, double startX, double startY, double startHeadingDeg) {
-        int a = prevHeadingIndex(pts, k);
-        int b = nextHeadingIndex(pts, k);
-        double fromDeg = a >= 0 ? pts.get(a).theta : startHeadingDeg;
-
-        if (b < 0) return fromDeg; // nothing ahead, hold what we had
-        double toDeg = pts.get(b).theta;
-
-        if (!params[b].interpolate) return toDeg;
-
-        double[] tr = turnLengths(pts, prefix, params, a, b, k, poseX, poseY, startX, startY);
-        if (tr[0] <= EPS) return toDeg;
-        double progress = smoothstep(clamp(1.0 - tr[1] / tr[0], 0.0, 1.0));
-        return fromDeg + turnDeltaDeg(fromDeg, toDeg, params[b].turnDirection) * progress;
-    }
-
-    /**
-     * {total, remaining}: how long the turn from heading point a to heading point b is, and how much of it is left,
-     * measured along the path. If the robot moves on from b at an early exit range (b isn't the last point), the turn
-     * ends there instead of at b, so the heading is all the way round when b counts as done (no jump at the handoff).
-     */
-    private static double[] turnLengths(List<PathPoint> pts, double[] prefix, ResolvedParams[] params, int a, int b, int k,
-            double poseX, double poseY, double startX, double startY) {
-        PathPoint target = pts.get(k);
-        double total = a >= 0
-            ? prefix[b] - prefix[a]
-            : dist(startX, startY, pts.get(0).x, pts.get(0).y) + prefix[b] - prefix[0];
-        double remaining = dist(poseX, poseY, target.x, target.y) + prefix[b] - prefix[k];
-        double exit = b < pts.size() - 1 && params[b].hasEarlyExit() ? params[b].earlyExitRange : 0.0;
-        return new double[] {total - exit, Math.max(0.0, remaining - exit)};
+        return headingCurve(pts, prefix, params, k, poseX, poseY, startX, startY, startHeadingDeg)[0];
     }
 
     /**
@@ -292,20 +257,57 @@ final class PathMath {
      */
     static double desiredHeadingRateDegPerSec(List<PathPoint> pts, double[] prefix, ResolvedParams[] params, int k,
             double poseX, double poseY, double vx, double vy, double startX, double startY, double startHeadingDeg) {
-        int a = prevHeadingIndex(pts, k);
-        int b = nextHeadingIndex(pts, k);
-        if (b < 0 || !params[b].interpolate) return 0.0;
-        double fromDeg = a >= 0 ? pts.get(a).theta : startHeadingDeg;
-        double[] tr = turnLengths(pts, prefix, params, a, b, k, poseX, poseY, startX, startY);
-        if (tr[0] <= EPS) return 0.0;
-        double u = 1.0 - tr[1] / tr[0];
-        if (u <= 0.0 || u >= 1.0) return 0.0;
+        double slope = headingCurve(pts, prefix, params, k, poseX, poseY, startX, startY, startHeadingDeg)[1];
+        if (slope == 0.0) return 0.0;
         PathPoint target = pts.get(k);
         double d = dist(poseX, poseY, target.x, target.y);
         if (d <= EPS) return 0.0;
-        // what's left shrinks as fast as the robot closes on its target; smoothstep's slope is 6u(1 − u)
+        // the robot moves along the path as fast as it closes on its target
         double closing = ((target.x - poseX) * vx + (target.y - poseY) * vy) / d;
-        return turnDeltaDeg(fromDeg, pts.get(b).theta, params[b].turnDirection) * 6.0 * u * (1.0 - u) * closing / tr[0];
+        return slope * closing;
+    }
+
+    /** {heading (deg), its rate along the path (deg/m)} while driving toward points[k]. */
+    private static double[] headingCurve(List<PathPoint> pts, double[] prefix, ResolvedParams[] params, int k,
+            double poseX, double poseY, double startX, double startY, double startHeadingDeg) {
+        int a = prevHeadingIndex(pts, k);
+        int b = nextHeadingIndex(pts, k);
+        if (b < 0) return new double[] {a >= 0 ? pts.get(a).theta : startHeadingDeg, 0.0}; // nothing ahead, hold what we had
+        if (!params[b].interpolate) return new double[] {pts.get(b).theta, 0.0};
+        // how far along the path the robot is: where its target is, less how far it still has to go to it
+        double s = prefix[k] - dist(poseX, poseY, pts.get(k).x, pts.get(k).y);
+        return turnCurve(pts, prefix, params, a, b, s, dist(startX, startY, pts.get(0).x, pts.get(0).y), startHeadingDeg);
+    }
+
+    /**
+     * {heading, deg/m} at path position {@code s} (m, 0 at point 0) on the turn from heading point a (-1: the robot's
+     * start, {@code startDist} before point 0) to heading point b.
+     *
+     * <p>The turn is proportional to distance: it runs from A to B along the path, and x% of the way there it has
+     * turned x% of the way from A's heading to B's, so the robot faces each heading at its point. Which turn it's on
+     * goes by how far along the path the robot is, not by which point it's driving to: when it moves on from B early (at
+     * B's early exit range) it's still short of B, so it keeps turning into B until it's level with it, then carries
+     * straight on into the next turn. Turns are chained back to back, so the heading never sits still or jumps between
+     * them, and since the rate per meter is constant over a stretch, the spin rate follows the robot's speed.
+     */
+    private static double[] turnCurve(List<PathPoint> pts, double[] prefix, ResolvedParams[] params, int a, int b,
+            double s, double startDist, double startHeadingDeg) {
+        double s0 = a >= 0 ? prefix[a] : -startDist;
+        double s1 = prefix[b];
+        // moved on from A early but not level with it yet: still on the turn into A (if that one is interpolated)
+        if (s < s0 && a >= 0 && params[a].interpolate) {
+            return turnCurve(pts, prefix, params, prevHeadingIndex(pts, a), a, s, startDist, startHeadingDeg);
+        }
+        double y0 = a >= 0 ? pts.get(a).theta : startHeadingDeg;
+        double y1 = y0 + turnDeltaDeg(y0, pts.get(b).theta, params[b].turnDirection);
+        int b2 = nextHeadingIndex(pts, b + 1);
+        // right at B: carry on into the next turn, so its rate doesn't drop
+        if (s >= s1 && b2 >= 0 && params[b2].interpolate) return turnCurve(pts, prefix, params, b, b2, s, startDist, startHeadingDeg);
+        double h = s1 - s0;
+        if (h <= EPS || s >= s1) return new double[] {y1, 0.0};
+        if (s < s0) return new double[] {y0, 0.0};
+        double rate = (y1 - y0) / h;
+        return new double[] {y0 + rate * (s - s0), rate};
     }
 
     /**

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2027.0.4
+
+- **Interpolated turns are proportional to distance:** x% of the way from heading point A to heading point B along the path, the heading has turned x% of the way (it used to ease in and out with a smoothstep, so at 10% of the way it had only turned about 3%). The spin rate is the turn's degrees per meter times the robot's speed, so it ramps up and down with the speed: a trapezoid on a straight. Where one turn hands over to a different rate (including reversing at a heading point), the rate changes there at once and the heading controller catches up.
+- **Turns finish at the point again, without the jump:** 2027.0.1 made a turn finish at the point's early exit range, to stop the heading jumping the rest of the way when the robot moved on early. Now which turn the robot is on goes by how far along the path it is, not by which point it's driving to, so after moving on early it keeps turning into the point until it's level with it, then carries straight on into the next turn. The heading you give a point is the heading the robot has at that point, whatever the early exit range (facing the hub = the bearing from the point), and turns run back to back: the heading never sits still after a point and the feedforward never drops out at a handoff. Before, with a heading on every point of an orbit, the spin stopped at every point (about 40% of the time); now it doesn't, and a few heading points with `turnDirection` carry a whole orbit (a 25-point circle round the hub aims within 1.3° with 5 heading points, the 17-point figure eight within 1.9° with 7).
+- The final heading settles a little later on paths that end in a turn (6.14 s to 6.26 s on the test path), since the turn now runs right up to the last point.
+
 ## 2027.0.3
 
 - **Turn direction per point:** `"turnDirection": "cw"` or `"ccw"` in a heading point's params makes an interpolated turn into it go that way round, even when the other way is shorter (`"auto"` or unset keeps the shorter way). Points only; ignored on the path. The heading feedforward follows the same turn. New `TurnDirection` enum and a `PathParams` constructor that takes it; the old constructor still works.

@@ -115,7 +115,7 @@ Then each loop, toward the current point at distance `d`, with `v` the robot's m
 The JSON format and every field are described in [docs/path-format.md](docs/path-format.md). The short version:
 
 - Points are driven to in order. A point **without** a heading is translation-only.
-- `interpolate` on a heading point means "turn smoothly into this heading" across the stretch since the previous heading point, finishing as the robot reaches the point's early exit range (so nothing jumps when it moves on). Off means aim for it right away, as soon as the previous heading point is done. Turning it on for the whole path turns it on for every heading point.
+- `interpolate` on a heading point means "turn into this heading in proportion to the distance covered": halfway along the path from the previous heading point to this one, it has turned halfway, and it faces this heading at this point (early exit doesn't change that). Turns join up with no pause and nothing jumps at a handoff, and the spin speeds up and slows down with the robot. Off means aim for it right away, as soon as the previous heading point is done. Turning it on for the whole path turns it on for every heading point. `turnDirection` (`"cw"` / `"ccw"`) on a point forces the way round.
 - `earlyExitRange` moves on early, which is good for flowing through points. The **last point always arrives**: early exit and min speed don't apply to it.
 - Translation-only points never wait on heading.
 - Events fire at a fraction of the way to the next point. Anything skipped by early exit still fires when the point finishes.

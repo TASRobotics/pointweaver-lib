@@ -62,8 +62,14 @@ share that limit. Early exit hands off to the next point while still moving, so 
 The path splits into stretches from one heading point **A** to the next heading point **B**, with
 translation-only points in between. Before the first heading point, A is the robot's heading when the path started.
 
-- **`interpolate` true on B (or on the path):** the target heading eases from A to B (smoothstep) over the whole stretch, measured
-  along the path. No snapping.
+- **`interpolate` true on B (or on the path):** the target heading turns from A to B in proportion to the distance
+  along the path: x% of the way from A to B, x% of the turn, so the robot faces B's heading at B. No snapping. Early
+  exit doesn't change this: after moving on from B early, the robot keeps turning into B until it's level with it,
+  then carries straight on into the next turn, so consecutive turns join up with no pause or jump. The spin rate is
+  the turn's degrees per meter times the robot's speed, so it speeds up and slows down with the robot; where the next
+  turn has a different rate (or turns back the other way), the rate changes right at the point. An orbit needs only
+  a few heading points (with `turnDirection` for turns of 180° or more) to give one steady spin, each heading being
+  the direction to face from that point.
 - **`interpolate` false on B:** aim for B as soon as the robot leaves A, turning as fast as the heading controller allows.
 - **`turnDirection` on B** picks the way round for an interpolated turn: `"cw"` (heading goes down) or `"ccw"` (heading
   goes up, the WPILib direction), even when the other way is shorter, so 0° → 90° with `"cw"` turns 270°. `"auto"` or
