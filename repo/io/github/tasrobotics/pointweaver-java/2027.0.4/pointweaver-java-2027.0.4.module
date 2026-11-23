@@ -1,0 +1,100 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "io.github.tasrobotics",
+    "module": "pointweaver-java",
+    "version": "2027.0.4",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.8.2"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 25,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "pointweaver-java-2027.0.4.jar",
+          "url": "pointweaver-java-2027.0.4.jar",
+          "size": 47628,
+          "sha512": "f319677595efe88d0521155bca807667cb2075175bc9f6569c2002ba67857547e0b91902a5b6641cdaa825e6eea0c2c6f3ef580cf4515f0ae18f28ced1515ec4",
+          "sha256": "7532f6c66e27c56427fd29186664e1263779a473762c6510770a953fe1c10057",
+          "sha1": "5d59c42533d3ea34b1d09c0dc82af97a706c7b60",
+          "md5": "dc38e23f2f82aaba0e1df77e82353051"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 25,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "pointweaver-java-2027.0.4.jar",
+          "url": "pointweaver-java-2027.0.4.jar",
+          "size": 47628,
+          "sha512": "f319677595efe88d0521155bca807667cb2075175bc9f6569c2002ba67857547e0b91902a5b6641cdaa825e6eea0c2c6f3ef580cf4515f0ae18f28ced1515ec4",
+          "sha256": "7532f6c66e27c56427fd29186664e1263779a473762c6510770a953fe1c10057",
+          "sha1": "5d59c42533d3ea34b1d09c0dc82af97a706c7b60",
+          "md5": "dc38e23f2f82aaba0e1df77e82353051"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "pointweaver-java-2027.0.4-sources.jar",
+          "url": "pointweaver-java-2027.0.4-sources.jar",
+          "size": 31793,
+          "sha512": "086d905595875720c4398326e453598f51cce015c00a6a78d2b1c2b50dcaff1a9ccbc59b4ec31f6ba6c93cefe0b376b487c15de6f476fd2d4e71b5c61acf066d",
+          "sha256": "af9a9e5ee7fa6445b897637fc9b89ef5af2697b2bc836d2854cc183a87f3414e",
+          "sha1": "1be5a98cce5f710a9d2631397cf80df0184ba897",
+          "md5": "04c1e2037d21edbc591e458ef9393dc6"
+        }
+      ]
+    },
+    {
+      "name": "javadocElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "pointweaver-java-2027.0.4-javadoc.jar",
+          "url": "pointweaver-java-2027.0.4-javadoc.jar",
+          "size": 4238583,
+          "sha512": "1d3863bf77fac5e9a6e5a48f97d3b58814553b40e04d542caf68eff35119356bb803d391ceb337532d66b9f8161da94307c5e3ab9e3098275960a4808e960a42",
+          "sha256": "fe9dcb29057f3992a2247975cbf7207a7da55d2e6f003c8b86fe46afe41e1a44",
+          "sha1": "42466b217c19733618daab13564e7a3ae553bff3",
+          "md5": "401f8a38888c2ff782e54d6be07b6573"
+        }
+      ]
+    }
+  ]
+}
