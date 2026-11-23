@@ -77,14 +77,18 @@ final class PathMath {
         final double timeout;
         /** true if the path or the point turns it on (on for the path can't be turned off per point) */
         final boolean interpolate;
+        /** the point's own (AUTO when unset); there's no path-wide one */
+        final TurnDirection turnDirection;
 
-        ResolvedParams(double minSpeed, double maxSpeed, double maxAccel, double earlyExitRange, double timeout, boolean interpolate) {
+        ResolvedParams(double minSpeed, double maxSpeed, double maxAccel, double earlyExitRange, double timeout, boolean interpolate,
+                TurnDirection turnDirection) {
             this.minSpeed = minSpeed;
             this.maxSpeed = maxSpeed;
             this.maxAccel = maxAccel;
             this.earlyExitRange = earlyExitRange;
             this.timeout = timeout;
             this.interpolate = interpolate;
+            this.turnDirection = turnDirection;
         }
 
         boolean hasEarlyExit() {
@@ -106,13 +110,27 @@ final class PathMath {
         Double timeout = pick(b.timeout, a.timeout);
         // interpolate on for the whole path turns it on for every point; otherwise each point decides (default off)
         boolean interp = Boolean.TRUE.equals(a.interpolate) || Boolean.TRUE.equals(b.interpolate);
+        // turn direction is per point only: each turn picks its own way round
+        TurnDirection turn = b.turnDirection != null ? b.turnDirection : TurnDirection.AUTO;
         return new ResolvedParams(
             min != null ? min : 0.0,
             max != null ? max : Double.POSITIVE_INFINITY,
             accel != null ? accel : Double.POSITIVE_INFINITY,
             exit != null ? exit : Double.NaN,
             timeout != null ? timeout : Double.POSITIVE_INFINITY,
-            interp);
+            interp,
+            turn);
+    }
+
+    /**
+     * How far to turn (degrees) to get from heading {@code fromDeg} to {@code toDeg} going round {@code dir}:
+     * AUTO the shorter way, in [-180, 180); CCW in [0, 360); CW in (-360, 0]. Already facing it = 0 either way.
+     */
+    static double turnDeltaDeg(double fromDeg, double toDeg, TurnDirection dir) {
+        double d = shortestAngleDeg(fromDeg, toDeg);
+        if (dir == TurnDirection.CCW && d < 0) return d + 360.0;
+        if (dir == TurnDirection.CW && d > 0) return d - 360.0;
+        return d;
     }
 
     static ResolvedParams[] resolveAll(PathDefinition def) {
@@ -248,7 +266,7 @@ final class PathMath {
         double[] tr = turnLengths(pts, prefix, params, a, b, k, poseX, poseY, startX, startY);
         if (tr[0] <= EPS) return toDeg;
         double progress = smoothstep(clamp(1.0 - tr[1] / tr[0], 0.0, 1.0));
-        return fromDeg + shortestAngleDeg(fromDeg, toDeg) * progress;
+        return fromDeg + turnDeltaDeg(fromDeg, toDeg, params[b].turnDirection) * progress;
     }
 
     /**
@@ -287,7 +305,7 @@ final class PathMath {
         if (d <= EPS) return 0.0;
         // what's left shrinks as fast as the robot closes on its target; smoothstep's slope is 6u(1 − u)
         double closing = ((target.x - poseX) * vx + (target.y - poseY) * vy) / d;
-        return shortestAngleDeg(fromDeg, pts.get(b).theta) * 6.0 * u * (1.0 - u) * closing / tr[0];
+        return turnDeltaDeg(fromDeg, pts.get(b).theta, params[b].turnDirection) * 6.0 * u * (1.0 - u) * closing / tr[0];
     }
 
     /**

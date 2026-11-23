@@ -48,6 +48,7 @@ Each field can be missing or null, which means "inherit". A point's value wins o
 | `earlyExitRange` | off | Move on once this close (m). **Ignored on the last point.** |
 | `timeout` | none | Move on after this many seconds no matter what. |
 | `interpolate` | false | Only matters on heading points, see below. True on the path = true on every point (a point can't turn it back off); otherwise each point decides. |
+| `turnDirection` | `"auto"` | **Points only** (ignored on the path). Which way an interpolated turn into this heading goes round: `"cw"`, `"ccw"`, or `"auto"` (the shorter way). See below. |
 
 ## Speed
 
@@ -64,6 +65,10 @@ translation-only points in between. Before the first heading point, A is the rob
 - **`interpolate` true on B (or on the path):** the target heading eases from A to B (smoothstep) over the whole stretch, measured
   along the path. No snapping.
 - **`interpolate` false on B:** aim for B as soon as the robot leaves A, turning as fast as the heading controller allows.
+- **`turnDirection` on B** picks the way round for an interpolated turn: `"cw"` (heading goes down) or `"ccw"` (heading
+  goes up, the WPILib direction), even when the other way is shorter, so 0° → 90° with `"cw"` turns 270°. `"auto"` or
+  unset takes the shorter way. Already facing B means no turn either way. Without `interpolate` it has no effect: the
+  heading controller always takes the shorter way to a fixed target.
 
 ## When a point is done
 

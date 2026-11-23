@@ -20,15 +20,23 @@ public final class PathParams {
      * On the path, it turns this on for every heading point (a point can't turn it back off).
      */
     public final Boolean interpolate;
+    /** On a heading point: which way an interpolated turn into it goes round (unset = AUTO). Ignored on the path. */
+    public final TurnDirection turnDirection;
 
-    public static final PathParams EMPTY = new PathParams(null, null, null, null, null, null);
+    public static final PathParams EMPTY = new PathParams(null, null, null, null, null, null, null);
 
     public PathParams(Double minSpeed, Double maxSpeed, Double maxAccel, Double earlyExitRange, Double timeout, Boolean interpolate) {
+        this(minSpeed, maxSpeed, maxAccel, earlyExitRange, timeout, interpolate, null);
+    }
+
+    public PathParams(Double minSpeed, Double maxSpeed, Double maxAccel, Double earlyExitRange, Double timeout, Boolean interpolate,
+            TurnDirection turnDirection) {
         this.minSpeed = minSpeed;
         this.maxSpeed = maxSpeed;
         this.maxAccel = maxAccel;
         this.earlyExitRange = earlyExitRange;
         this.timeout = timeout;
         this.interpolate = interpolate;
+        this.turnDirection = turnDirection;
     }
 }

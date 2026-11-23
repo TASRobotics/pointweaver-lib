@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -101,7 +102,21 @@ public final class PathParser {
             num(p.get("maxAccel"), name, where + " maxAccel"),
             num(p.get("earlyExitRange"), name, where + " earlyExitRange"),
             num(p.get("timeout"), name, where + " timeout"),
-            bool(p.get("interpolate"), name, where + " interpolate"));
+            bool(p.get("interpolate"), name, where + " interpolate"),
+            turn(p.get("turnDirection"), name, where + " turnDirection"));
+    }
+
+    private static TurnDirection turn(Object raw, String name, String where) {
+        if (raw == null) return null;
+        if (raw instanceof String s) {
+            switch (s.toLowerCase(Locale.ROOT)) {
+                case "cw": return TurnDirection.CW;
+                case "ccw": return TurnDirection.CCW;
+                case "auto": return TurnDirection.AUTO;
+                default: break;
+            }
+        }
+        throw bad(name, where + " must be \"cw\", \"ccw\" or \"auto\"");
     }
 
     @SuppressWarnings("unchecked")

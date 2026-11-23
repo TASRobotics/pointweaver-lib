@@ -48,6 +48,22 @@ class PathParserTest {
     }
 
     @Test
+    void readsTurnDirection() {
+        PathDefinition def = PathParser.parse("p", "{\"params\": {\"turnDirection\": \"auto\"}, \"points\": ["
+            + "{\"x\": 0, \"y\": 0, \"theta\": 0}, {\"x\": 1, \"y\": 0, \"theta\": 90, \"params\": {\"turnDirection\": \"CW\"}},"
+            + "{\"x\": 2, \"y\": 0, \"theta\": 0, \"params\": {\"turnDirection\": \"ccw\"}}, {\"x\": 3, \"y\": 0, \"params\": {\"turnDirection\": null}}]}");
+        assertEquals(TurnDirection.AUTO, def.params.turnDirection);
+        assertNull(def.points.get(0).params.turnDirection);
+        assertEquals(TurnDirection.CW, def.points.get(1).params.turnDirection);
+        assertEquals(TurnDirection.CCW, def.points.get(2).params.turnDirection);
+        assertNull(def.points.get(3).params.turnDirection);
+
+        PathLoadException e = assertThrows(PathLoadException.class,
+            () -> PathParser.parse("bad", "{\"points\": [{\"x\": 1, \"y\": 2, \"params\": {\"turnDirection\": \"left\"}}]}"));
+        assertTrue(e.getMessage().contains("turnDirection") && e.getMessage().contains("\"cw\""), e.getMessage());
+    }
+
+    @Test
     void explainsBadFiles() {
         PathLoadException e = assertThrows(PathLoadException.class, () -> PathParser.parse("bad", "{\"points\": [{\"x\": 1}]}"));
         assertTrue(e.getMessage().contains("'bad'") && e.getMessage().contains("point 0"), e.getMessage());

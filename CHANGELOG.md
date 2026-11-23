@@ -1,5 +1,9 @@
 # Changelog
 
+## 2027.0.3 (unreleased)
+
+- **Turn direction per point:** `"turnDirection": "cw"` or `"ccw"` in a heading point's params makes an interpolated turn into it go that way round, even when the other way is shorter (`"auto"` or unset keeps the shorter way). Points only; ignored on the path. The heading feedforward follows the same turn. New `TurnDirection` enum and a `PathParams` constructor that takes it; the old constructor still works.
+
 ## 2027.0.2
 
 - **Commands v3 adapter** (`pointweaver.command3.PointWeaverCommands`, needs the Commands V3 vendordep): `followPath(name)` requires the drivetrain if it's a `Mechanism` (or pass the mechanism: `followPath(name, swerve)`) and idles the drivetrain however it ends. `registerEvent(name, command)` starts the command on the next scheduler loop as its own command, so it outlives the path (until it finishes or the auto ends) instead of being canceled with it, and refuses a command that would take the drivetrain from a running path or the auto around it. The Commands v2 adapter is unchanged.

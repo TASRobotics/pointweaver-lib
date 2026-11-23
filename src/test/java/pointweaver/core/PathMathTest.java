@@ -100,6 +100,44 @@ class PathMathTest {
         assertEquals(90, PathMath.desiredHeadingDeg(pts, prefix, params, 2, 2, 0, 0, 0, 0), 1e-9);
     }
 
+    static PathParams turn(TurnDirection dir) {
+        return new PathParams(null, null, null, null, null, true, dir);
+    }
+
+    @Test
+    void turnDeltaGoesTheChosenWayRound() {
+        assertEquals(20, PathMath.turnDeltaDeg(170, -170, TurnDirection.AUTO), 1e-9);
+        assertEquals(20, PathMath.turnDeltaDeg(170, -170, TurnDirection.CCW), 1e-9);
+        assertEquals(-340, PathMath.turnDeltaDeg(170, -170, TurnDirection.CW), 1e-9);
+        assertEquals(270, PathMath.turnDeltaDeg(0, -90, TurnDirection.CCW), 1e-9);
+        assertEquals(-90, PathMath.turnDeltaDeg(0, -90, TurnDirection.CW), 1e-9);
+        assertEquals(180, PathMath.turnDeltaDeg(0, 180, TurnDirection.CCW), 1e-9);
+        assertEquals(-180, PathMath.turnDeltaDeg(0, 180, TurnDirection.CW), 1e-9);
+        assertEquals(0, PathMath.turnDeltaDeg(45, 405, TurnDirection.CW), 1e-9, "already facing it: no full spin");
+        assertEquals(0, PathMath.turnDeltaDeg(45, 45, TurnDirection.CCW), 1e-9);
+    }
+
+    @Test
+    void forcedTurnDirectionGoesTheLongWayRound() {
+        // heading 0 -> heading 90 over 2 m: auto turns +90, CW turns -270
+        List<PathPoint> pts = List.of(pt(0, 0, 0.0, null), pt(2, 0, 90.0, turn(TurnDirection.CW)));
+        PathDefinition def = new PathDefinition("t", pts, null, false);
+        ResolvedParams[] params = PathMath.resolveAll(def);
+        double[] prefix = PathMath.prefixDistances(pts);
+        assertEquals(-135, PathMath.desiredHeadingDeg(pts, prefix, params, 1, 1, 0, 0, 0, 0), 1e-9, "halfway round clockwise");
+        assertEquals(-270, PathMath.desiredHeadingDeg(pts, prefix, params, 1, 2, 0, 0, 0, 0), 1e-9, "= 90, arrived");
+        // feedforward turns the same way: -270 * 1.5 * (1 m/s / 2 m)
+        assertEquals(-202.5, PathMath.desiredHeadingRateDegPerSec(pts, prefix, params, 1, 1, 0, 1, 0, 0, 0, 0), 1e-9);
+    }
+
+    @Test
+    void turnDirectionIsPerPointOnly() {
+        assertEquals(TurnDirection.AUTO, PathMath.resolve(PathParams.EMPTY, PathParams.EMPTY).turnDirection);
+        assertEquals(TurnDirection.CCW, PathMath.resolve(PathParams.EMPTY, turn(TurnDirection.CCW)).turnDirection);
+        assertEquals(TurnDirection.CCW, PathMath.resolve(turn(TurnDirection.CW), turn(TurnDirection.CCW)).turnDirection);
+        assertEquals(TurnDirection.AUTO, PathMath.resolve(turn(TurnDirection.CW), null).turnDirection, "ignored on the path");
+    }
+
     @Test
     void withoutInterpolationAimsForTheNextHeadingRightAway() {
         List<PathPoint> pts = List.of(pt(0, 0, 0.0, null), pt(1, 0, null, null), pt(2, 0, 90.0, interp(false)));
